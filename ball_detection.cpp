@@ -13,9 +13,9 @@
 // Green: H: 107-179, S: 200-255, V:0-130
 
 // These values are for HSV: Note that these may need to be adjusted for glare
-//  Red: H:0-40, S:130-255, V: 215-255
-//  Blue: H: 95-135, S:70-255, V:185-255
-// Green: H: 50-90, S:80-180, V: 170-255
+//  Red: H:130-179, S:0-255, V: 0-255
+//  Green: H: 60-100, S:50-255, V:0-255
+//  Blue: H: 90-130, S:110-178, V: 0-255
 
 cv::Mat cleanUpNoise(cv::Mat noisy_img)
 {
@@ -66,9 +66,9 @@ int main()
   cv::createTrackbar("LowV", "Control", &low_v, 255);
   cv::createTrackbar("HighV", "Control", &high_v, 255);
 
-  // cv::VideoCapture cap(0);
+  cv::VideoCapture cap(1);
   cv::Mat img, hsv;
-  img = cv::imread("plinko.jpg");
+  // img = cv::imread("plinko.jpg");
   // img = cv::imread("test.jpg");
 
   cv::Mat img_red, img_blue, img_green;
@@ -77,45 +77,47 @@ int main()
   // int green_low(38), green_high(75);
 
   //For tuning
-  // while(true)
-  // {
-  //   // cap >> img;
-  //   cv::cvtColor(img, hsv, cv::COLOR_BGR2HSV); //Easier to detect color in HSV
-  //   // cv::inRange(img, cv::Scalar(red_low, low_s, low_v), cv::Scalar(red_high, high_s, high_v), img_red);
-  //   cv::inRange(hsv, cv::Scalar(low_h, low_s, low_v), cv::Scalar(high_h, high_s, high_v), img_red);
-  //
-  //   cv::imshow("Original", img);
-  //   cv::imshow("Red", img_red);
-  //   if(cv::waitKey(30) == 27) //press esc to exit
-  //     break;
-  // }
+  while(true)
+  {
+    cap >> img;
+    cv::cvtColor(img, hsv, cv::COLOR_BGR2HSV); //Easier to detect color in HSV
+    // cv::inRange(img, cv::Scalar(red_low, low_s, low_v), cv::Scalar(red_high, high_s, high_v), img_red);
+    cv::inRange(hsv, cv::Scalar(low_h, low_s, low_v), cv::Scalar(high_h, high_s, high_v), img_red);
+
+    img_red = cleanUpNoise(img_red);
+
+    cv::imshow("Original", img);
+    cv::imshow("Red", img_red);
+    if(cv::waitKey(30) == 27) //press esc to exit
+      break;
+  }
 
   //For plinko.jpg
-  cv::cvtColor(img, hsv, cv::COLOR_BGR2HSV); //Easier to detect color in HSV
-  cv::inRange(hsv, cv::Scalar(0, 130, 215), cv::Scalar(40, 255, 255), img_red);
-  cv::inRange(hsv, cv::Scalar(95, 70, 185), cv::Scalar(135, 255, 255), img_blue);
-  cv::inRange(hsv, cv::Scalar(50, 80, 170), cv::Scalar(90, 180, 255), img_green);
-
-  // The following may not be necessary if our thresholding is good enough and we need to be faster
-  img_red = cleanUpNoise(img_red);
-  img_blue = cleanUpNoise(img_blue);
-  img_green = cleanUpNoise(img_green);
-
-  std::vector<cv::Point2f> red_center = findCentroids(img_red);
-  std::vector<cv::Point2f> blue_center = findCentroids(img_blue);
-  std::vector<cv::Point2f> green_center = findCentroids(img_green);
-
-  printCentroids(red_center);
-  printCentroids(blue_center);
-  printCentroids(green_center);
-
-  std::cout << red_center.size() << "\t" << blue_center.size() << "\t" << green_center.size() << "\n";
-
-  cv::imshow("Red", img_red);
-  cv::imshow("Blue", img_blue);
-  cv::imshow("Green", img_green);
-  cv::imshow("Original", img);
-  cv::waitKey();
+  // cv::cvtColor(img, hsv, cv::COLOR_BGR2HSV); //Easier to detect color in HSV
+  // cv::inRange(hsv, cv::Scalar(0, 130, 215), cv::Scalar(40, 255, 255), img_red);
+  // cv::inRange(hsv, cv::Scalar(95, 70, 185), cv::Scalar(135, 255, 255), img_blue);
+  // cv::inRange(hsv, cv::Scalar(50, 80, 170), cv::Scalar(90, 180, 255), img_green);
+  //
+  // // The following may not be necessary if our thresholding is good enough and we need to be faster
+  // img_red = cleanUpNoise(img_red);
+  // img_blue = cleanUpNoise(img_blue);
+  // img_green = cleanUpNoise(img_green);
+  //
+  // std::vector<cv::Point2f> red_center = findCentroids(img_red);
+  // std::vector<cv::Point2f> blue_center = findCentroids(img_blue);
+  // std::vector<cv::Point2f> green_center = findCentroids(img_green);
+  //
+  // printCentroids(red_center);
+  // printCentroids(blue_center);
+  // printCentroids(green_center);
+//
+  // std::cout << red_center.size() << "\t" << blue_center.size() << "\t" << green_center.size() << "\n";
+  //
+  // cv::imshow("Red", img_red);
+  // cv::imshow("Blue", img_blue);
+  // cv::imshow("Green", img_green);
+  // cv::imshow("Original", img);
+  // cv::waitKey();
 
   return 0;
 }

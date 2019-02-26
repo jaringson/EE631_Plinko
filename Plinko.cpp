@@ -5,7 +5,7 @@ int mouse_X, mouse_Y;
 std::vector<cv::Point> points;
 
 void on_mouse(int evt, int x, int y, int flags, void* param) {
-   if(evt == CV_EVENT_LBUTTONDOWN) {
+   if(evt == cv::EVENT_LBUTTONDOWN) { //CV_EVENT_LBUTTONDOWN
        mouse_X = x;
        mouse_Y = y;
    }
@@ -47,7 +47,7 @@ int main(int argc, char** argv)
   cv::Mat frame;
   cv::Mat frame_gray;
   cv::Mat frame_prev;
-  cv::namedWindow("Plinko", CV_WINDOW_AUTOSIZE);
+  cv::namedWindow("Plinko", cv::WINDOW_AUTOSIZE); //CV_WINDOW_AUTOSIZE
 
   char function{'n'};
 
@@ -60,7 +60,7 @@ int main(int argc, char** argv)
   {
 
     video >> frame;
-    cvtColor(frame, frame_gray, CV_BGR2GRAY);
+    cvtColor(frame, frame_gray, cv::COLOR_BGR2GRAY); //CV_BGR2GRAY
     frame_prev = frame.clone();
 
     if(calibrationRect.tl().x!=-1)
