@@ -70,7 +70,7 @@ int main(int, char**)
             cv::Point2f blue_center = findCentroids(img_blue)[0];
             cv::Point2f green_center = findCentroids(img_green)[0];
 
-            //Implement stragegy: will probably return a number indicating what column to go to.
+            //Implement stragegy: will probably return a number indicating what column/position to go to.
 
         		imshow("Camera Input", frame);
         		if(waitKey(10) >= 0) break;
@@ -79,7 +79,6 @@ int main(int, char**)
             // "h\n" is to home the motor
             // "g<integer range 7 to 53>\n" sends the motor to that position in cm
             // e.g. "g35\n" sends the motor to 35cm from left wall
-            //Good to know how to use
             if(frameCounter%200==0)
             {
                 sendCommand("g10\n");
