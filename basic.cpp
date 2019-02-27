@@ -1,12 +1,11 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 
-
-
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <termios.h>
+
 
 int fd, n, i;
 char buf[128] = "temp text";
@@ -18,6 +17,8 @@ void sendCommand(const char* command);
 int setupSerial();
 cv::Rect calibrate_camera(cv::Mat frame);
 void on_mouse(int evt, int x, int y, int flags, void* param);
+cv::Mat cleanUpNoise(cv::Mat noisy_img);
+std::vector<cv::Point2f> findCentroids(cv::Mat diff);
 
 int main(int, char**)
 {   int frameCounter = 0;
@@ -37,31 +38,57 @@ int main(int, char**)
     for(;;)
     {
         frameCounter++;
-        Mat frame;
+        Mat frame, hsv, img_red, img_blue, img_green;
 
         cap >> frame; // get a new frame from camera
-        cv::rectangle(frame, calibrationRect, cv::Scalar(0, 255, 0));
-        
-	      if(!frame.empty()){
-        //ADD YOUR CODE HERE
 
+        //Instead of drawing a rectangle, just crop the image
+        // cv::rectangle(frame, calibrationRect, cv::Scalar(0, 255, 0));
+        frame = frame(calibrationRect);
 
-    		imshow("Camera Input", frame);
-    		if(waitKey(10) >= 0) break;
-
-        // Command structure is very simple
-        // "h\n" is to home the motor
-        // "g<integer range 7 to 53>\n" sends the motor to that position in cm
-        // e.g. "g35\n" sends the motor to 35cm from left wall
-        if(frameCounter%200==0)
+	      if(!frame.empty())
         {
-            sendCommand("g10\n");
+            //ADD YOUR CODE HERE
+            cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
+
+            // These values are for HSV: Note that these may need to be adjusted for glare
+            //  Red: H:130-179, S:0-255, V: 0-255
+            //  Green: H: 60-100, S:50-255, V:0-255
+            //  Blue: H: 90-130, S:110-178, V: 0-255
+            //Threshold the image to isolate the ball
+            cv::inRange(hsv, cv::Scalar(130, 0, 0), cv::Scalar(179, 255, 255), img_red);
+            cv::inRange(hsv, cv::Scalar(60, 50, 0), cv::Scalar(100, 255, 255), img_green);
+            cv::inRange(hsv, cv::Scalar(90, 110, 0), cv::Scalar(130, 178, 255), img_blue);
+
+            //Clean up the noise
+            img_red = cleanUpNoise(img_red);
+            img_green = cleanUpNoise(img_green);
+            img_blue = cleanUpNoise(img_blue);
+
+            //Find centroids: Will this cause issues if there isn't a center?
+            cv::Point2f red_center = findCentroids(img_red)[0];
+            cv::Point2f blue_center = findCentroids(img_blue)[0];
+            cv::Point2f green_center = findCentroids(img_green)[0];
+
+            //Implement stragegy: will probably return a number indicating what column to go to.
+
+        		imshow("Camera Input", frame);
+        		if(waitKey(10) >= 0) break;
+
+            // Command structure is very simple
+            // "h\n" is to home the motor
+            // "g<integer range 7 to 53>\n" sends the motor to that position in cm
+            // e.g. "g35\n" sends the motor to 35cm from left wall
+            //Good to know how to use
+            if(frameCounter%200==0)
+            {
+                sendCommand("g10\n");
+            }
+            else if(frameCounter%100==0)
+            {
+                sendCommand("g50\n");
+            }
         }
-        else if(frameCounter%100==0)
-        {
-            sendCommand("g50\n");
-        }
-	}
     }
     // the camera will be deinitialized automatically in VideoCapture destructor
     return 0;
@@ -137,4 +164,34 @@ void on_mouse(int evt, int x, int y, int flags, void* param)
        mouse_X = x;
        mouse_Y = y;
    }
+}
+
+cv::Mat cleanUpNoise(cv::Mat noisy_img)
+{
+  cv::Mat img;
+  cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5)); //Maybe make this 3, 3
+  cv::erode(noisy_img, img, element);
+  cv::dilate(img, img, element);
+
+  return img;
+}
+
+std::vector<cv::Point2f> findCentroids(cv::Mat diff)
+{
+  //For some reason this finds the centroid twice
+  cv::Mat canny_out;
+  cv::Canny(diff, canny_out, 100, 200, 3); //May need to change the middle two values
+  std::vector<std::vector<cv::Point>> contours;
+  cv::findContours(canny_out, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+
+  std::vector<cv::Moments> mu(contours.size());
+  std::vector<cv::Point2f> mc(contours.size());
+  for(int i(0); i< contours.size(); i++)
+  {
+    mu[i] = cv::moments(contours[i]);
+    mc[i] = cv::Point2f(static_cast<float>(mu[i].m10/(mu[i].m00+1e-5)),
+                    static_cast<float>(mu[i].m01/(mu[i].m00+1e-5)));
+  }
+
+  return mc;
 }
