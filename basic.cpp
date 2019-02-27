@@ -65,10 +65,10 @@ int main(int, char**)
             img_green = cleanUpNoise(img_green);
             img_blue = cleanUpNoise(img_blue);
 
-            //Find centroids: Will this cause issues if there isn't a center?
-            cv::Point2f red_center = findCentroids(img_red)[0];
-            cv::Point2f blue_center = findCentroids(img_blue)[0];
-            cv::Point2f green_center = findCentroids(img_green)[0];
+            //Find centroids:
+            std::vector<cv::Point2f> red_center = findCentroids(img_red);
+            std::vector<cv::Point2f> blue_center = findCentroids(img_blue);
+            std::vector<cv::Point2f> green_center = findCentroids(img_green);
 
             //Implement stragegy: will probably return a number indicating what column/position to go to.
 
