@@ -7,3 +7,6 @@ target_link_libraries(Plinko ${OpenCV_LIBS})
 
 add_executable(ball_detect ball_detection.cpp)
 target_link_libraries(ball_detect ${OpenCV_LIBS})
+
+add_executable(basic basic.cpp)
+target_link_libraries(basic ${OpenCV_LIBS})
