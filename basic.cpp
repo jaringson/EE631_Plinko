@@ -15,7 +15,7 @@ using namespace cv;
 
 void sendCommand(const char* command);
 int setupSerial();
-cv::Rect calibrate_camera(cv::Mat frame);
+void calibrate_camera(cv::Mat frame, cv::Rect& calibrationRect, std::vector<cv::Point2f>& pegs);
 void on_mouse(int evt, int x, int y, int flags, void* param);
 cv::Mat cleanUpNoise(cv::Mat noisy_img);
 std::vector<cv::Point2f> findCentroids(cv::Mat diff);
@@ -33,7 +33,8 @@ int main(int, char**)
 
     //Setting up our calibration stuff here
     cv::Rect calibrationRect(cv::Point(-1,-1),cv::Point(-1,-1));
-    calibrationRect = calibrate_camera(frameLast);
+    std::vector<cv::Point2f> pegs;
+    calibrate_camera(frameLast, calibrationRect, pegs);
 
     for(;;)
     {
@@ -43,8 +44,7 @@ int main(int, char**)
         cap >> frame; // get a new frame from camera
 
         //Instead of drawing a rectangle, just crop the image
-        // cv::rectangle(frame, calibrationRect, cv::Scalar(0, 255, 0));
-        frame = frame(calibrationRect);
+        cv::rectangle(frame, calibrationRect, cv::Scalar(0, 255, 0));
 
 	      if(!frame.empty())
         {
@@ -71,6 +71,8 @@ int main(int, char**)
             std::vector<cv::Point2f> green_center = findCentroids(img_green);
 
             //Implement stragegy: will probably return a number indicating what column/position to go to.
+            //Can implement default to just go after the ball with the highest points
+            //Column:cm : 1:6cm, 2:11cm, 3:16cm, 4:21cm, 5:26cm, 6:31cm, 7:36cm, 8:41cm, 9:46/47cm, 10:51/52cm
 
         		imshow("Camera Input", frame);
         		if(waitKey(10) >= 0) break;
@@ -136,7 +138,7 @@ int setupSerial()
     return 0;
 }
 
-cv::Rect calibrate_camera(cv::Mat frame)
+void calibrate_camera(cv::Mat frame, cv::Rect& calibrationRect, std::vector<cv::Point2f>& pegs)
 {
   cv::namedWindow("ImageDisplay", 1);
   cv::setMouseCallback("ImageDisplay", on_mouse, (void*)&points);
@@ -153,8 +155,20 @@ cv::Rect calibrate_camera(cv::Mat frame)
   cv::Point br(mouse_X, mouse_Y);
   std::cout << "Point: " << mouse_X << " " << mouse_Y << "\n";
 
+  calibrationRect = cv::Rect(tl,br);
+
+  // std::vector<cv::Point> pegs;
+  int numOfPegs = 11;
+  for(int i=0;i<numOfPegs;i++)
+  {
+    std::cout << "Please click on " << std::to_string(i+1) << " peg. Then press space to Continue." << "\n";
+    cv::imshow("ImageDisplay", frame);
+    cv::waitKey(0);
+    pegs.push_back(cv::Point(mouse_X, mouse_Y));
+    std::cout << "Point: " << mouse_X << " " << mouse_Y << "\n";
+  }
+
   cv::destroyWindow("ImageDisplay");
-  return cv::Rect(tl,br);
 }
 
 void on_mouse(int evt, int x, int y, int flags, void* param)
