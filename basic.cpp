@@ -11,7 +11,8 @@ int fd, n, i;
 char buf[128] = "temp text";
 using namespace cv;
 
-void sendCommand(const char* command){
+void sendCommand(const char* command)
+{
     printf("Sending Command: %s", command);
     /* Send byte to trigger Arduino to send string back */
     write(fd, command, strlen(command));
@@ -21,7 +22,8 @@ void sendCommand(const char* command){
     buf[n] = 0;
 }
 
-int setupSerial(){
+int setupSerial()
+{
 
     struct termios toptions;
 
@@ -69,22 +71,25 @@ int main(int, char**)
         Mat frame;
 
         cap >> frame; // get a new frame from camera
-	if(!frame.empty()){
+	      if(!frame.empty()){
         //ADD YOUR CODE HERE
 
 
-		imshow("Camera Input", frame);
-		if(waitKey(10) >= 0) break;
+    		imshow("Camera Input", frame);
+    		if(waitKey(10) >= 0) break;
 
         // Command structure is very simple
         // "h\n" is to home the motor
         // "g<integer range 7 to 53>\n" sends the motor to that position in cm
         // e.g. "g35\n" sends the motor to 35cm from left wall
-        if(frameCounter%200==0){
+        if(frameCounter%200==0)
+        {
             sendCommand("g10\n");
-        }else if(frameCounter%100==0){
+        }
+        else if(frameCounter%100==0)
+        {
             sendCommand("g50\n");
-        } 
+        }
 	}
     }
     // the camera will be deinitialized automatically in VideoCapture destructor
