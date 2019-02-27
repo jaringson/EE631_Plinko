@@ -3,6 +3,7 @@
 
 int mouse_X, mouse_Y;
 std::vector<cv::Point> points;
+int numOfPegs = 11;
 
 void on_mouse(int evt, int x, int y, int flags, void* param) {
    if(evt == cv::EVENT_LBUTTONDOWN) { //CV_EVENT_LBUTTONDOWN
@@ -11,7 +12,7 @@ void on_mouse(int evt, int x, int y, int flags, void* param) {
    }
 }
 
-cv::Rect calibrate_camera(cv::Mat frame)
+void calibrate_camera(cv::Mat frame, cv::Rect& calibrationRect, std::vector<cv::Point2f>& pegs)
 {
   cv::namedWindow("ImageDisplay", 1);
   cv::setMouseCallback("ImageDisplay", on_mouse, (void*)&points);
@@ -28,8 +29,19 @@ cv::Rect calibrate_camera(cv::Mat frame)
   cv::Point br(mouse_X, mouse_Y);
   std::cout << "Point: " << mouse_X << " " << mouse_Y << "\n";
 
+  calibrationRect = cv::Rect(tl,br);
+
+  // std::vector<cv::Point> pegs;
+  for(int i=0;i<numOfPegs;i++)
+  {
+    std::cout << "Please click on " << std::to_string(i+1) << " peg. Then press space to Continue." << "\n";
+    cv::imshow("ImageDisplay", frame);
+    cv::waitKey(0);
+    pegs.push_back(cv::Point(mouse_X, mouse_Y));
+    std::cout << "Point: " << mouse_X << " " << mouse_Y << "\n";
+  }
+
   cv::destroyWindow("ImageDisplay");
-  return cv::Rect(tl,br);
 }
 
 std::vector<cv::Point2f> track_balls(cv::Rect calibrationRect)
@@ -55,6 +67,7 @@ int main(int argc, char** argv)
 
   cv::Rect calibrationRect(cv::Point(-1,-1),cv::Point(-1,-1));
   std::vector<cv::Point2f> ballLocations;
+  std::vector<cv::Point2f> pegs;
 
   for(;;)
   {
@@ -63,18 +76,26 @@ int main(int argc, char** argv)
     cvtColor(frame, frame_gray, cv::COLOR_BGR2GRAY); //CV_BGR2GRAY
     frame_prev = frame.clone();
 
-    if(calibrationRect.tl().x!=-1)
-      cv::rectangle(frame, calibrationRect, cv::Scalar(0, 255, 0));
     cv::imshow("Plinko", frame);
     char c = cv::waitKey(30);
 
     if(c=='c')
-      calibrationRect = calibrate_camera(frame);
+      calibrate_camera(frame, calibrationRect, pegs);
     else if(calibrationRect.tl().x!=-1)
       ballLocations = track_balls(calibrationRect);
-
     if(c=='q')
       break;
+
+    if(calibrationRect.tl().x!=-1)
+    {
+      cv::rectangle(frame, calibrationRect, cv::Scalar(0, 255, 0));
+      for(int i=0;i<numOfPegs;i++)
+      {
+        cv::circle(frame, pegs[i], 2, cv::Scalar(0, 255, 0));
+      }
+      cv::imshow("Calibrated Plinko", frame);
+      cv::waitKey(30);
+    }
 
   }
 
