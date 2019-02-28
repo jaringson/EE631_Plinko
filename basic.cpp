@@ -31,10 +31,25 @@ int main(int, char**)
     cap >> frameLast;
     sendCommand("h\n"); // Home the motor and encoder
 
+
+
     //Setting up our calibration stuff here
     cv::Rect calibrationRect(cv::Point(-1,-1),cv::Point(-1,-1));
     std::vector<cv::Point2f> pegs;
     calibrate_camera(frameLast, calibrationRect, pegs);
+
+    ////// For Reading in the calibration file 
+    //cv::FileStorage fs_in("calibration.yaml",cv::FileStorage::READ);
+    //fs_in["CalibrationRectangle"] >> calibrationRect;
+    //fs_in["Pegs"] >> pegs;
+    //fs_in.release();
+
+    ////// For savingin off the calibration file
+    cv::FileStorage fs_out("calibration.yaml",cv::FileStorage::WRITE);
+    fs_out << "CalibrationRectangle" << calibrationRect;
+    fs_out << "Pegs" << pegs;
+    fs_out.release();
+
 
     for(;;)
     {
