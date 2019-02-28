@@ -63,15 +63,15 @@ int main(int argc, char** argv)
 
   cv::Mat output_image;
 
-  cv::Rect calibrationRect; 
+  cv::Rect calibrationRect;
   std::vector<cv::Point2f> ballLocations;
   std::vector<cv::Point2f> pegs;
 
 
-  cv::FileStorage fs("../calibration.yaml",cv::FileStorage::READ);
-  fs["CalibrationRectangle"] >> calibrationRect;
-  fs["Pegs"] >> pegs;
-  fs.release();
+  cv::FileStorage fs_in("../calibration.yaml",cv::FileStorage::READ);
+  fs_in["CalibrationRectangle"] >> calibrationRect;
+  fs_in["Pegs"] >> pegs;
+  fs_in.release();
 
   for(;;)
   {
