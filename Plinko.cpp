@@ -61,13 +61,17 @@ int main(int argc, char** argv)
   cv::Mat frame_prev;
   cv::namedWindow("Plinko", cv::WINDOW_AUTOSIZE); //CV_WINDOW_AUTOSIZE
 
-  char function{'n'};
-
   cv::Mat output_image;
 
-  cv::Rect calibrationRect(cv::Point(-1,-1),cv::Point(-1,-1));
+  cv::Rect calibrationRect; 
   std::vector<cv::Point2f> ballLocations;
   std::vector<cv::Point2f> pegs;
+
+
+  cv::FileStorage fs("../calibration.yaml",cv::FileStorage::READ);
+  fs["CalibrationRectangle"] >> calibrationRect;
+  fs["Pegs"] >> pegs;
+  fs.release();
 
   for(;;)
   {
@@ -85,6 +89,13 @@ int main(int argc, char** argv)
       ballLocations = track_balls(calibrationRect);
     if(c=='q')
       break;
+    if(c=='s')
+    {
+      cv::FileStorage fs("../calibration.yaml",cv::FileStorage::WRITE);
+      fs << "CalibrationRectangle" << calibrationRect;
+      fs << "Pegs" << pegs;
+      fs.release();
+    }
 
     if(calibrationRect.tl().x!=-1)
     {
