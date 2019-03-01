@@ -36,6 +36,7 @@ int main(int, char**)
     //Setting up our calibration stuff here
     cv::Rect calibrationRect(cv::Point(-1,-1),cv::Point(-1,-1));
     std::vector<cv::Point2f> pegs;
+
     std::cout << "Enter 'c' to calibrate. Hit another key to read in file:\n";
     int key = cv::waitKey(0);
     if(key == (int)('c'))
@@ -94,7 +95,7 @@ int main(int, char**)
             detect->detect(diff, keypts);
 
             std::vector<cv::Point2f> centers;
-            std::vector<cv::Point2f> balls;
+            std::vector<cv::Point2f> balls(3); //red is first, blue is second, green is third
             cv::KeyPoint::convert(keypts, centers);
 
             for(cv::Point2f circle : centers)
@@ -104,11 +105,20 @@ int main(int, char**)
 
               // if((b < 255 && b > 50) && (g < 255 && g > 50) && (r < 250 && r>200)) //would help get rid of some blobs
               if(r > b && r > g)
+              {
                 cv::circle(frame, circle, 5, cv::Scalar(255, 0, 0), -1);
+                balls[0] = circle;
+              }
               else if(b > r && b > g)
+              {
                 cv::circle(frame, circle, 5, cv::Scalar(0, 255, 0), -1);
+                balls[2] = circle;
+              }
               else if(g > r && g > b)
+              {
                 cv::circle(frame, circle, 5, cv::Scalar(0, 0, 255), -1);
+                balls[1] = circle;
+              }
             }
 
             //Implement stragegy: will probably return a number indicating what column/position to go to.
