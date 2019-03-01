@@ -139,7 +139,7 @@ int main()
       cv::Vec3b color = frame.at<cv::Vec3b>(circle.y, circle.x);
       int b(color.val[0]), g(color.val[1]), r(color.val[2]);
 
-      // if((b < 255 && b > 50) && (g < 255 && g > 50) && (r < 250 && r>200))
+      // if((b < 255 && b > 50) && (g < 255 && g > 50) && (r < 250 && r>200)) //would help get rid of some blobs
       if(r > b && r > g)
         cv::circle(frame, circle, 5, cv::Scalar(255, 0, 0), -1);
       else if(b > r && b > g)

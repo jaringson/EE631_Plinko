@@ -51,6 +51,8 @@ std::vector<cv::Point2f> track_balls(cv::Rect calibrationRect)
   return std::vector<cv::Point2f>();
 }
 
+
+
 int main(int argc, char** argv)
 {
   cv::VideoCapture video(0);
