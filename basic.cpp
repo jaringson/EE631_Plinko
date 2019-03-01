@@ -1,4 +1,5 @@
 #include <opencv2/opencv.hpp>
+#include <opencv2/features2d.hpp>
 #include <vector>
 
 #include <errno.h>
@@ -63,6 +64,14 @@ int main(int, char**)
 
     g_init = frameLast(roi);
 
+    cv::SimpleBlobDetector::Params params;
+    params.minThreshold = 100;
+    params.maxThreshold = 255; //maybe try by circularity also
+    params.filterByColor = true;
+    params.blobColor = 255;
+    params.filterByArea = true;
+    params.minArea = 153;
+    params.maxArea = 1256;
 
     for(;;)
     {
