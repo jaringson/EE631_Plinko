@@ -1,8 +1,12 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/features2d.hpp>
 #include <vector>
 #include <iostream>
+
+using namespace cv;
+using namespace std;
 
 // Hue values of basic colors from https://www.opencv-srf.com/2010/09/object-detection-using-color-seperation.html
 //
@@ -74,6 +78,14 @@ int main()
   init_frame = init_frame(roi);
   g_init = g_init(roi);
 
+  cv::SimpleBlobDetector::Params params;
+  params.minThreshold = 50;
+  params.maxThreshold = 255; //maybe try by circularity also
+  params.filterByColor = true;
+  params.blobColor = 255;
+
+  cv::Ptr<cv::SimpleBlobDetector> detect = cv::SimpleBlobDetector::create(params);
+
   while(true)
   {
     cap >> frame;
@@ -84,22 +96,38 @@ int main()
     g_frame = g_frame(roi);
     frame = frame(roi);
     cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
-    cv::absdiff(g_frame, g_init, diff);
-    // cv::absdiff(init_frame, frame, diff);
 
-    //circle detection
-    std::vector<cv::Vec3f> circles;
-    // //2nd to last entry is min circle radius
-    cv::medianBlur(diff, diff, 5); //should i do it on diff or g_frame
-    cv::HoughCircles(diff, circles, cv::HOUGH_GRADIENT, 1, diff.rows/16, 16, 25, 10, 50); //30, 23
+    // //Hough Circle method: Will usually get 1 or 2. Sometimes will get 3
+    // cv::absdiff(g_frame, g_init, diff);
+    // // diff = g_frame; //Instead of absolute differencing
+    //
+    // //circle detection
+    // std::vector<cv::Vec3f> circles;
+    // // //2nd to last entry is min circle radius
+    // cv::medianBlur(diff, diff, 5); //should i do it on diff or g_frame
+    // cv::HoughCircles(diff, circles, cv::HOUGH_GRADIENT, 1, diff.rows/16, 18, 25, 10, 50); //30, 23
+    //
+    // std::cout << circles.size() << std::endl;
+    // std::vector<cv::Point2f> centers;
+    // for(cv::Vec3f circle : circles)
+    // {
+    //   cv::Point2f center(circle[0], circle[1]);
+    //   cv::circle(frame, center, circle[2], cv::Scalar(0, 0, 255), -1);
+    //   centers.push_back(center);
+    // }
 
-    std::cout << circles.size() << std::endl;
+    // Blob detection
+    cv::absdiff(g_init, g_frame, diff);
+    cv::threshold(diff, diff, 40, 255, 0);
+    diff = cleanUpNoise(diff);
+    std::vector<cv::KeyPoint> keypts;
+    detect->detect(diff, keypts);
+
     std::vector<cv::Point2f> centers;
-    for(cv::Vec3f circle : circles)
+    cv::KeyPoint::convert(keypts, centers);
+    for(cv::Point2f circle : centers)
     {
-      cv::Point2f center(circle[0], circle[1]);
-      cv::circle(frame, center, circle[2], cv::Scalar(0, 0, 255), -1);
-      centers.push_back(center);
+      cv::circle(frame, circle, 20, cv::Scalar(0, 0, 255), -1);
     }
 
     cv::imshow("Diff", diff);
