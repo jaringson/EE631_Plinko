@@ -61,7 +61,7 @@ int main()
   std::string filename("plinko_up_board.avi"); //definetly want up, board, probably want lights off
   cv::VideoCapture cap(filename);
 
-  cv::Mat frame, init_frame, diff, g_init, g_frame, show;
+  cv::Mat frame, init_frame, diff, g_init, g_frame, hsv;
   cap >> init_frame;
   cv::Rect roi;
   // I am purposefully cutting more out right now for the sake of not having glare
@@ -83,27 +83,27 @@ int main()
     cv::cvtColor(frame, g_frame, cv::COLOR_BGR2GRAY);
     g_frame = g_frame(roi);
     frame = frame(roi);
-    cv::absdiff(g_init, g_frame, diff);
+    cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
+    cv::absdiff(g_frame, g_init, diff);
+    // cv::absdiff(init_frame, frame, diff);
 
-    cv::threshold(diff, diff, 40, 255, 0);
-    // cv::inRange(diff, cv::Scalar(30, 30, 30), cv::Scalar(150, 150, 150), diff);
-    diff = cleanUpNoise(diff);
-
-    // //circle detection
-    // std::vector<cv::Vec3f> circles;
+    //circle detection
+    std::vector<cv::Vec3f> circles;
     // //2nd to last entry is min circle radius
-    // cv::medianBlur(diff, diff, 3); //should i do it on diff or g_frame
-    // cv::HoughCircles(diff, circles, cv::HOUGH_GRADIENT, 1, diff.rows/16, 50, 30, 0, 50);
-    // // cv::medianBlur(g_frame, g_frame, 3); //should i do it on diff or g_frame
-    // // cv::HoughCircles(g_frame, circles, cv::HOUGH_GRADIENT, 1, g_frame.rows/16, 100, 30, 0, 50);
-    //
-    // std::cout << circles.size() << std::endl;
-    // cv::cvtColor(g_frame, show, cv::COLOR_GRAY2BGR);
-    // for(cv::Vec3f circle : circles)
-    //   cv::circle(show, cv::Point2f(circle[0], circle[1]), circle[2], cv::Scalar(0, 0, 255), -1);
+    cv::medianBlur(diff, diff, 5); //should i do it on diff or g_frame
+    cv::HoughCircles(diff, circles, cv::HOUGH_GRADIENT, 1, diff.rows/16, 16, 25, 10, 50); //30, 23
+
+    std::cout << circles.size() << std::endl;
+    std::vector<cv::Point2f> centers;
+    for(cv::Vec3f circle : circles)
+    {
+      cv::Point2f center(circle[0], circle[1]);
+      cv::circle(frame, center, circle[2], cv::Scalar(0, 0, 255), -1);
+      centers.push_back(center);
+    }
 
     cv::imshow("Diff", diff);
-    // cv::imshow("Gray", show);
+    cv::imshow("Live", frame);
     cv::waitKey(30);
   }
 }
