@@ -46,3 +46,34 @@ int main()
 
   return 0;
 }
+
+
+//Used to determine HSV values of balls
+// int main(int argc, char** argv)
+// {
+//   cv::Mat img, hsv;
+//   img = cv::imread("color_values.jpg");
+//   cv::cvtColor(img, hsv, cv::COLOR_BGR2HSV);
+//
+//   cv::namedWindow("ImageDisplay", 1);
+//   cv::setMouseCallback("ImageDisplay", on_mouse, (void*)&points);
+//
+//   std::cout << "Please click on Red ball. Then press space to Continue." << "\n";
+//   cv::imshow("ImageDisplay", img);
+//   cv::waitKey(0);
+//   cv::Point tl(mouse_X, mouse_Y);
+//   cv::Vec3b color = hsv.at<cv::Vec3b>(mouse_X, mouse_Y);
+//   std::cout << "\nH_r\t" << (int)color.val[0] << "\tS_r\t" << (int)color.val[1] << "\tV_r\t" << (int)color.val[2];
+//
+//   std::cout << "\nPlease click on Blue ball. Then press space to Continue." << "\n";
+//   cv::waitKey(0);
+//   cv::Point tf(mouse_X, mouse_Y);
+//   color = hsv.at<cv::Vec3b>(mouse_X, mouse_Y);
+//   std::cout << "\nH_r\t" << (int)color.val[0] << "\tS_r\t" << (int)color.val[1] << "\tV_r\t" << (int)color.val[2];
+//
+//   std::cout << "\nPlease click on Green ball. Then press space to Continue." << "\n";
+//   cv::waitKey(0);
+//   cv::Point tg(mouse_X, mouse_Y);
+//   color = hsv.at<cv::Vec3b>(mouse_X, mouse_Y);
+//   std::cout << "\nH_r\t" << (int)color.val[0] << "\tS_r\t" << (int)color.val[1] << "\tV_r\t" << (int)color.val[2];
+// }
