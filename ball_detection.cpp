@@ -10,12 +10,6 @@ using namespace std;
 
 // Hue values of basic colors from https://www.opencv-srf.com/2010/09/object-detection-using-color-seperation.html
 //
-// On test img: values may need to be adjusted due to glare
-// These values may work for RGB
-//  Red: H:0-120, S: 0-122, V: 189-255
-//  Blue: H: 170-179, S: 150-205:, V: 120-160
-// Green: H: 107-179, S: 200-255, V:0-130
-
 // These values are for HSV: Note that these may need to be adjusted for glare
 //  Red: H:130-179, S:0-255, V: 0-255
 //  Green: H: 60-100, S:50-255, V:0-255
@@ -62,9 +56,11 @@ int main()
   // std::string filename("plinko_up.avi");
   // std::string filename("plinko_down.avi");
   // std::string filename("plinko_up_lights.avi");
-  std::string filename("plinko_up_board.avi"); //definetly want up, board, probably want lights off
-  // cv::VideoCapture cap(filename);
-  cv::VideoCapture cap(0);
+  // std::string filename("plinko_up_board.avi"); //definetly want up, board, probably want lights off
+
+  std::string filename("plinko_lights_board1.avi");
+  cv::VideoCapture cap(filename);
+  // cv::VideoCapture cap(0);
 
   cv::Mat frame, init_frame, diff, g_init, g_frame, hsv;
   cap >> init_frame;
