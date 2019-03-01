@@ -21,8 +21,9 @@ cv::Mat cleanUpNoise(cv::Mat noisy_img);
 std::vector<cv::Point2f> findCentroids(cv::Mat diff);
 
 int main(int, char**)
-{   int frameCounter = 0;
-    Mat frameLast;
+{
+    int frameCounter = 0;
+    Mat frameLast, g_init;
     VideoCapture cap(0); // open the default camera
     setupSerial();
     if(!cap.isOpened())  // check if we succeeded
@@ -36,13 +37,18 @@ int main(int, char**)
     //Setting up our calibration stuff here
     cv::Rect calibrationRect(cv::Point(-1,-1),cv::Point(-1,-1));
     std::vector<cv::Point2f> pegs;
-    calibrate_camera(frameLast, calibrationRect, pegs);
-
-    ////// For Reading in the calibration file 
-    //cv::FileStorage fs_in("calibration.yaml",cv::FileStorage::READ);
-    //fs_in["CalibrationRectangle"] >> calibrationRect;
-    //fs_in["Pegs"] >> pegs;
-    //fs_in.release();
+    std::cout << "Enter 'c' to calibrate. Hit another key to read in file:\n";
+    int key = cv::waitKey(0);
+    if(key == (int)('c'))
+      calibrate_camera(frameLast, calibrationRect, pegs);
+    else
+    {
+      ////// For Reading in the calibration file
+      cv::FileStorage fs_in("calibration.yaml",cv::FileStorage::READ);
+      fs_in["CalibrationRectangle"] >> calibrationRect;
+      fs_in["Pegs"] >> pegs;
+      fs_in.release();
+    }
 
     ////// For savingin off the calibration file
     cv::FileStorage fs_out("calibration.yaml",cv::FileStorage::WRITE);
@@ -173,13 +179,13 @@ void calibrate_camera(cv::Mat frame, cv::Rect& calibrationRect, std::vector<cv::
   calibrationRect = cv::Rect(tl,br);
 
   // std::vector<cv::Point> pegs;
-  int numOfPegs = 11;
+  int numOfPegs(11);
   for(int i=0;i<numOfPegs;i++)
   {
-    std::cout << "Please click on " << std::to_string(i+1) << " peg. Then press space to Continue." << "\n";
+    std::cout << "Please click on peg " << std::to_string(i+1) << ". Then press space to Continue." << "\n";
     cv::imshow("ImageDisplay", frame);
     cv::waitKey(0);
-    pegs.push_back(cv::Point(mouse_X, mouse_Y));
+    pegs[i] = cv::Point(mouse_X, mouse_Y);
     std::cout << "Point: " << mouse_X << " " << mouse_Y << "\n";
   }
 
