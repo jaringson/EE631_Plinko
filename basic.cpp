@@ -56,16 +56,22 @@ int main(int, char**)
     fs_out << "Pegs" << pegs;
     fs_out.release();
 
+    cv::Rect roi = cv::Rect(calibrationRect.tl().x,
+      calibrationRect.tl().y,
+      calibrationRect.br().x-calibrationRect.tl().x,
+      calibrationRect.br().y-calibrationRect.tl().y);
+
+    g_init = frameLast(roi);
+
 
     for(;;)
     {
         frameCounter++;
-        Mat frame, hsv, img_red, img_blue, img_green;
+        Mat frame, g_frame,  hsv, img_red, img_blue, img_green;
 
         cap >> frame; // get a new frame from camera
-
-        //Instead of drawing a rectangle, just crop the image
-        cv::rectangle(frame, calibrationRect, cv::Scalar(0, 255, 0));
+        cv::cvtColor(frame, g_frame, cv::COLOR_BGR2GRAY);
+        g_frame = g_frame(roi);
 
 	      if(!frame.empty())
         {
