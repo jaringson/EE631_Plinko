@@ -82,12 +82,19 @@ int main()
     cap >> img;
     cv::cvtColor(img, hsv, cv::COLOR_BGR2HSV); //Easier to detect color in HSV
     // cv::inRange(img, cv::Scalar(red_low, low_s, low_v), cv::Scalar(red_high, high_s, high_v), img_red);
-    cv::inRange(hsv, cv::Scalar(low_h, low_s, low_v), cv::Scalar(high_h, high_s, high_v), img_red);
+    cv::inRange(hsv, cv::Scalar(low_h, low_s, low_v), cv::Scalar(high_h, high_s, high_v), img_blue);
+    cv::inRange(hsv, cv::Scalar(120, 60, 0), cv::Scalar(179, 255, 255), img_red);
+    cv::inRange(hsv, cv::Scalar(60, 60, 0), cv::Scalar(100, 255, 255), img_green);
+    // cv::inRange(hsv, cv::Scalar(90, 110, 0), cv::Scalar(130, 178, 255), img_blue);
 
     img_red = cleanUpNoise(img_red);
+    img_green = cleanUpNoise(img_green);
+    img_green = cleanUpNoise(img_green);
 
     cv::imshow("Original", img);
     cv::imshow("Red", img_red);
+    cv::imshow("Green", img_green);
+    cv::imshow("Blue", img_blue);
     if(cv::waitKey(30) == 27) //press esc to exit
       break;
   }

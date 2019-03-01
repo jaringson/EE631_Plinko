@@ -66,7 +66,7 @@ int main(int, char**)
             //ADD YOUR CODE HERE
             cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
 
-            // These values are for HSV: Note that these may need to be adjusted for glare
+            // These values are for HSV: Note that these may need to be adjusted still for glare
             //  Red: H:130-179, S:0-255, V: 0-255
             //  Green: H: 60-100, S:50-255, V:0-255
             //  Blue: H: 90-130, S:110-178, V: 0-255

@@ -10,3 +10,6 @@ target_link_libraries(ball_detect ${OpenCV_LIBS})
 
 add_executable(basic basic.cpp)
 target_link_libraries(basic ${OpenCV_LIBS})
+
+add_executable(video videoWrite.cpp)
+target_link_libraries(video ${OpenCV_LIBS})
