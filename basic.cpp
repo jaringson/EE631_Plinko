@@ -19,6 +19,7 @@ void calibrate_camera(cv::Mat frame, cv::Rect& calibrationRect, std::vector<cv::
 void on_mouse(int evt, int x, int y, int flags, void* param);
 cv::Mat cleanUpNoise(cv::Mat noisy_img);
 std::vector<cv::Point2f> findCentroids(cv::Mat diff);
+void sendMotorToCol(int col);
 
 int main(int, char**)
 {   int frameCounter = 0;
@@ -222,4 +223,30 @@ std::vector<cv::Point2f> findCentroids(cv::Mat diff)
   }
 
   return mc;
+}
+
+void sendMotorToCol(int col)
+{
+    if (col == 5)
+        sendCommand("g26\n");
+    else if (col == 6)
+        sendCommand("g31\n");
+    else if (col == 4)
+        sendCommand("g21\n");
+    else if (col == 7)
+        sendCommand("g36\n");
+    else if (col == 3)
+        sendCommand("g16\n");
+    else if (col == 8)
+        sendCommand("g41\n");
+    else if (col == 2)
+        sendCommand("g11\n");
+    else if (col == 9)
+        sendCommand("g46\n");
+    else if (col == 1)
+        sendCommand("g6\n");
+    else if (col == 10)
+        sendCommand("g51\n");
+    else
+        sendCommand("g26\n");
 }
