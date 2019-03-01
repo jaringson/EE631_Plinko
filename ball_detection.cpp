@@ -24,7 +24,7 @@ using namespace std;
 cv::Mat cleanUpNoise(cv::Mat noisy_img)
 {
   cv::Mat img;
-  cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(7, 7)); //Maybe make this 3, 3
+  cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5)); //Maybe make this 3, 3
   cv::erode(noisy_img, img, element);
   cv::dilate(img, img, element);
 
@@ -63,23 +63,25 @@ int main()
   // std::string filename("plinko_down.avi");
   // std::string filename("plinko_up_lights.avi");
   std::string filename("plinko_up_board.avi"); //definetly want up, board, probably want lights off
-  cv::VideoCapture cap(filename);
+  // cv::VideoCapture cap(filename);
+  cv::VideoCapture cap(0);
 
   cv::Mat frame, init_frame, diff, g_init, g_frame, hsv;
   cap >> init_frame;
   cv::Rect roi;
   // I am purposefully cutting more out right now for the sake of not having glare
-  roi.x = 200; //160 0r 170 was a good number
+  roi.x = 160; //160 0r 170 was a good number 200 for video
   roi.y = 0;
-  roi.width = 310; //340 was a good number
+  roi.width = 360; //340 was a good number 310 for video
   roi.height = 480;
 
   cv::cvtColor(init_frame, g_init, cv::COLOR_BGR2GRAY);
   init_frame = init_frame(roi);
+  // cv::imwrite("color_values.jpg", init_frame);
   g_init = g_init(roi);
 
   cv::SimpleBlobDetector::Params params;
-  params.minThreshold = 50;
+  params.minThreshold = 100;
   params.maxThreshold = 255; //maybe try by circularity also
   params.filterByColor = true;
   params.blobColor = 255;
@@ -132,7 +134,9 @@ int main()
 
     cv::imshow("Diff", diff);
     cv::imshow("Live", frame);
-    cv::waitKey(30);
+    int key = cv::waitKey(30);
+    if(key == (int)('q'))
+      break;
   }
 }
 
