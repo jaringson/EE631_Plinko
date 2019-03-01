@@ -55,69 +55,112 @@ void printCentroids(std::vector<cv::Point2f> pts)
 
 int main()
 {
-  int low_h, high_h, low_s, high_s, low_v, high_v;
+  // std::string filename("plinko_up.avi");
+  // std::string filename("plinko_down.avi");
+  std::string filename("plinko_up_board.avi"); //definetly want up, board, light are on but maybe want them off
+  cv::VideoCapture cap(filename);
 
-  cv::namedWindow("Control", cv::WINDOW_AUTOSIZE);
+  cv::Mat frame, init_frame, diff, g_init, g_frame;
+  cap >> init_frame;
+  cv::Rect roi;
+  roi.x = 140;
+  roi.y = 0;
+  roi.width = 370;
+  roi.height = 480;
 
-  cv::createTrackbar("LowH", "Control", &low_h, 179);
-  cv::createTrackbar("HighH", "Control", &high_h, 179);
-  cv::createTrackbar("LowS", "Control", &low_s, 255);
-  cv::createTrackbar("HighS", "Control", &high_s, 255);
-  cv::createTrackbar("LowV", "Control", &low_v, 255);
-  cv::createTrackbar("HighV", "Control", &high_v, 255);
-
-  cv::VideoCapture cap(1);
-  cv::Mat img, hsv;
-  // img = cv::imread("plinko.jpg");
-  // img = cv::imread("test.jpg");
-
-  cv::Mat img_red, img_blue, img_green;
-  // int red_low(160), red_high(179);
-  // int blue_low(75), blue_high(130);
-  // int green_low(38), green_high(75);
-
-  //For tuning
+  cv::cvtColor(init_frame, g_init, cv::COLOR_BGR2GRAY);
+  g_init = g_init(roi);
   while(true)
   {
-    cap >> img;
-    cv::cvtColor(img, hsv, cv::COLOR_BGR2HSV); //Easier to detect color in HSV
-    // cv::inRange(img, cv::Scalar(red_low, low_s, low_v), cv::Scalar(red_high, high_s, high_v), img_red);
-    cv::inRange(hsv, cv::Scalar(low_h, low_s, low_v), cv::Scalar(high_h, high_s, high_v), img_red);
-
-    img_red = cleanUpNoise(img_red);
-
-    cv::imshow("Original", img);
-    cv::imshow("Red", img_red);
-    if(cv::waitKey(30) == 27) //press esc to exit
+    cap >> frame;
+    if(frame.empty())
       break;
+
+    cv::cvtColor(frame, g_frame, cv::COLOR_BGR2GRAY);
+    g_frame = g_frame(roi);
+    cv::absdiff(g_init, g_frame, diff);
+    //15 for up,
+    cv::threshold(diff, diff, 40, 255, 0);
+
+
+    cv::imshow("Diff", diff);
+    cv::imshow("Gray", g_frame);
+     cv::waitKey(30);
   }
-
-  //For plinko.jpg
-  // cv::cvtColor(img, hsv, cv::COLOR_BGR2HSV); //Easier to detect color in HSV
-  // cv::inRange(hsv, cv::Scalar(0, 130, 215), cv::Scalar(40, 255, 255), img_red);
-  // cv::inRange(hsv, cv::Scalar(95, 70, 185), cv::Scalar(135, 255, 255), img_blue);
-  // cv::inRange(hsv, cv::Scalar(50, 80, 170), cv::Scalar(90, 180, 255), img_green);
-  //
-  // // The following may not be necessary if our thresholding is good enough and we need to be faster
-  // img_red = cleanUpNoise(img_red);
-  // img_blue = cleanUpNoise(img_blue);
-  // img_green = cleanUpNoise(img_green);
-  //
-  // std::vector<cv::Point2f> red_center = findCentroids(img_red);
-  // std::vector<cv::Point2f> blue_center = findCentroids(img_blue);
-  // std::vector<cv::Point2f> green_center = findCentroids(img_green);
-  //
-  // printCentroids(red_center);
-  // printCentroids(blue_center);
-  // printCentroids(green_center);
-//
-  // std::cout << red_center.size() << "\t" << blue_center.size() << "\t" << green_center.size() << "\n";
-  //
-  // cv::imshow("Red", img_red);
-  // cv::imshow("Blue", img_blue);
-  // cv::imshow("Green", img_green);
-  // cv::imshow("Original", img);
-  // cv::waitKey();
-
-  return 0;
 }
+
+// int main()
+// {
+//   int low_h, high_h, low_s, high_s, low_v, high_v;
+//
+//   cv::namedWindow("Control", cv::WINDOW_AUTOSIZE);
+//
+//   cv::createTrackbar("LowH", "Control", &low_h, 179);
+//   cv::createTrackbar("HighH", "Control", &high_h, 179);
+//   cv::createTrackbar("LowS", "Control", &low_s, 255);
+//   cv::createTrackbar("HighS", "Control", &high_s, 255);
+//   cv::createTrackbar("LowV", "Control", &low_v, 255);
+//   cv::createTrackbar("HighV", "Control", &high_v, 255);
+//
+//   cv::VideoCapture cap(1);
+//   cv::Mat img, hsv;
+//   // img = cv::imread("plinko.jpg");
+//   // img = cv::imread("test.jpg");
+//
+//   cv::Mat img_red, img_blue, img_green;
+//   // int red_low(160), red_high(179);
+//   // int blue_low(75), blue_high(130);
+//   // int green_low(38), green_high(75);
+//
+//   //For tuning
+//   while(true)
+//   {
+//     cap >> img;
+//     cv::cvtColor(img, hsv, cv::COLOR_BGR2HSV); //Easier to detect color in HSV
+//     // cv::inRange(img, cv::Scalar(red_low, low_s, low_v), cv::Scalar(red_high, high_s, high_v), img_red);
+//     cv::inRange(hsv, cv::Scalar(low_h, low_s, low_v), cv::Scalar(high_h, high_s, high_v), img_blue);
+//     cv::inRange(hsv, cv::Scalar(120, 60, 0), cv::Scalar(179, 255, 255), img_red);
+//     cv::inRange(hsv, cv::Scalar(60, 60, 0), cv::Scalar(100, 255, 255), img_green);
+//     // cv::inRange(hsv, cv::Scalar(90, 110, 0), cv::Scalar(130, 178, 255), img_blue);
+//
+//     img_red = cleanUpNoise(img_red);
+//     img_green = cleanUpNoise(img_green);
+//     img_green = cleanUpNoise(img_green);
+//
+//     cv::imshow("Original", img);
+//     cv::imshow("Red", img_red);
+//     cv::imshow("Green", img_green);
+//     cv::imshow("Blue", img_blue);
+//     if(cv::waitKey(30) == 27) //press esc to exit
+//       break;
+//   }
+//
+//   //For plinko.jpg
+//   // cv::cvtColor(img, hsv, cv::COLOR_BGR2HSV); //Easier to detect color in HSV
+//   // cv::inRange(hsv, cv::Scalar(0, 130, 215), cv::Scalar(40, 255, 255), img_red);
+//   // cv::inRange(hsv, cv::Scalar(95, 70, 185), cv::Scalar(135, 255, 255), img_blue);
+//   // cv::inRange(hsv, cv::Scalar(50, 80, 170), cv::Scalar(90, 180, 255), img_green);
+//   //
+//   // // The following may not be necessary if our thresholding is good enough and we need to be faster
+//   // img_red = cleanUpNoise(img_red);
+//   // img_blue = cleanUpNoise(img_blue);
+//   // img_green = cleanUpNoise(img_green);
+//   //
+//   // std::vector<cv::Point2f> red_center = findCentroids(img_red);
+//   // std::vector<cv::Point2f> blue_center = findCentroids(img_blue);
+//   // std::vector<cv::Point2f> green_center = findCentroids(img_green);
+//   //
+//   // printCentroids(red_center);
+//   // printCentroids(blue_center);
+//   // printCentroids(green_center);
+// //
+//   // std::cout << red_center.size() << "\t" << blue_center.size() << "\t" << green_center.size() << "\n";
+//   //
+//   // cv::imshow("Red", img_red);
+//   // cv::imshow("Blue", img_blue);
+//   // cv::imshow("Green", img_green);
+//   // cv::imshow("Original", img);
+//   // cv::waitKey();
+//
+//   return 0;
+// }
