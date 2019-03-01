@@ -81,6 +81,7 @@ int main()
     cv::absdiff(g_init, g_frame, diff);
     //15 for up,
     cv::threshold(diff, diff, 40, 255, 0);
+    diff = cleanUpNoise(diff);
 
 
     cv::imshow("Diff", diff);
