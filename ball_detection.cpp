@@ -63,7 +63,7 @@ int main()
   // std::string filename("plinko_up_lights.avi");
   // std::string filename("plinko_up_board.avi"); //definetly want up, board, probably want lights off
 
-  std::string filename("plinko_lights_board3.avi");
+  std::string filename("plinko_lights_board1.avi");
   cv::VideoCapture cap(filename);
   // cv::VideoCapture cap(0);
 
@@ -136,11 +136,16 @@ int main()
 
     for(cv::Point2f circle : centers)
     {
-      cv::Vec3b color = frame.at<cv::Vec3b>(circle.x, circle.y);
-      int h(color.val[0]), s(color.val[1]), v(color.val[2]);
+      cv::Vec3b color = frame.at<cv::Vec3b>(circle.y, circle.x);
+      int b(color.val[0]), g(color.val[1]), r(color.val[2]);
 
-      // if((h < 49 && h > 29) && (s < 45 && s > 25) && (v < 46 && v>26))
-        cv::circle(frame, circle, 15, cv::Scalar(0, 0, 255), -1);
+      // if((b < 255 && b > 50) && (g < 255 && g > 50) && (r < 250 && r>200))
+      if(r > b && r > g)
+        cv::circle(frame, circle, 5, cv::Scalar(255, 0, 0), -1);
+      else if(b > r && b > g)
+        cv::circle(frame, circle, 5, cv::Scalar(0, 255, 0), -1);
+      else if(g > r && g > b)
+        cv::circle(frame, circle, 5, cv::Scalar(0, 0, 255), -1);
     }
 
     cv::imshow("Diff", diff);
