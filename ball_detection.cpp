@@ -64,15 +64,16 @@ int main()
   cv::Mat frame, init_frame, diff, g_init, g_frame, show;
   cap >> init_frame;
   cv::Rect roi;
-  roi.x = 170;
+  // I am purposefully cutting more out right now for the sake of not having glare
+  roi.x = 200; //160 0r 170 was a good number
   roi.y = 0;
-  roi.width = 340;
+  roi.width = 310; //340 was a good number
   roi.height = 480;
 
   cv::cvtColor(init_frame, g_init, cv::COLOR_BGR2GRAY);
   init_frame = init_frame(roi);
-  // init_frame = cleanUpNoise(init_frame);
   g_init = g_init(roi);
+
   while(true)
   {
     cap >> frame;
@@ -82,28 +83,27 @@ int main()
     cv::cvtColor(frame, g_frame, cv::COLOR_BGR2GRAY);
     g_frame = g_frame(roi);
     frame = frame(roi);
-    cv::absdiff(g_frame, g_init, diff);
-    // cv::absdiff(init_frame, frame, diff);
+    cv::absdiff(g_init, g_frame, diff);
 
     cv::threshold(diff, diff, 40, 255, 0);
     // cv::inRange(diff, cv::Scalar(30, 30, 30), cv::Scalar(150, 150, 150), diff);
     diff = cleanUpNoise(diff);
 
-    //circle detection
-    cv::medianBlur(g_frame, g_frame, 3); //should i do it on diff or g_frame
+    // //circle detection
+    // std::vector<cv::Vec3f> circles;
+    // //2nd to last entry is min circle radius
     // cv::medianBlur(diff, diff, 3); //should i do it on diff or g_frame
-    std::vector<cv::Vec3f> circles;
-    //2nd to last entry is min circle radius
-    cv::HoughCircles(g_frame, circles, cv::HOUGH_GRADIENT, 1, g_frame.rows/16, 100, 30, 0, 50);
-    // cv::HoughCircles(diff, circles, cv::HOUGH_GRADIENT, 1, diff.rows/16, 50, 30, 0, 0);
-
-    std::cout << circles.size() << std::endl;
-    cv::cvtColor(g_frame, show, cv::COLOR_GRAY2BGR);
-    for(cv::Vec3f circle : circles)
-      cv::circle(show, cv::Point2f(circle[0], circle[1]), circle[2], cv::Scalar(0, 0, 255), -1);
+    // cv::HoughCircles(diff, circles, cv::HOUGH_GRADIENT, 1, diff.rows/16, 50, 30, 0, 50);
+    // // cv::medianBlur(g_frame, g_frame, 3); //should i do it on diff or g_frame
+    // // cv::HoughCircles(g_frame, circles, cv::HOUGH_GRADIENT, 1, g_frame.rows/16, 100, 30, 0, 50);
+    //
+    // std::cout << circles.size() << std::endl;
+    // cv::cvtColor(g_frame, show, cv::COLOR_GRAY2BGR);
+    // for(cv::Vec3f circle : circles)
+    //   cv::circle(show, cv::Point2f(circle[0], circle[1]), circle[2], cv::Scalar(0, 0, 255), -1);
 
     cv::imshow("Diff", diff);
-    cv::imshow("Gray", show);
+    // cv::imshow("Gray", show);
     cv::waitKey(30);
   }
 }
