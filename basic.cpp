@@ -33,8 +33,6 @@ int main(int, char**)
     cap >> frameLast;
     sendCommand("h\n"); // Home the motor and encoder
 
-
-
     //Setting up our calibration stuff here
     cv::Rect calibrationRect(cv::Point(-1,-1),cv::Point(-1,-1));
     std::vector<cv::Point2f> pegs;
@@ -62,8 +60,10 @@ int main(int, char**)
       calibrationRect.br().x-calibrationRect.tl().x,
       calibrationRect.br().y-calibrationRect.tl().y);
 
+    // Crop the initial image
     g_init = frameLast(roi);
 
+    //Set up blob detector
     cv::SimpleBlobDetector::Params params;
     params.minThreshold = 100;
     params.maxThreshold = 255; //maybe try by circularity also
@@ -72,39 +72,44 @@ int main(int, char**)
     params.filterByArea = true;
     params.minArea = 153;
     params.maxArea = 1256;
+    cv::Ptr<cv::SimpleBlobDetector> detect = cv::SimpleBlobDetector::create(params);
 
     for(;;)
     {
         frameCounter++;
-        Mat frame, g_frame,  hsv, img_red, img_blue, img_green;
+        Mat frame, g_frame, diff;
 
         cap >> frame; // get a new frame from camera
         cv::cvtColor(frame, g_frame, cv::COLOR_BGR2GRAY);
+        frame = frame(roi);
         g_frame = g_frame(roi);
 
 	      if(!frame.empty())
         {
             //ADD YOUR CODE HERE
-            cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
+            cv::absdiff(g_init, g_frame, diff);
+            cv::threshold(diff, diff, 40, 255, 0);
+            diff = cleanUpNoise(diff);
+            std::vector<cv::KeyPoint> keypts;
+            detect->detect(diff, keypts);
 
-            // These values are for HSV: Note that these may need to be adjusted still for glare
-            //  Red: H:130-179, S:0-255, V: 0-255
-            //  Green: H: 60-100, S:50-255, V:0-255
-            //  Blue: H: 90-130, S:110-178, V: 0-255
-            //Threshold the image to isolate the ball
-            cv::inRange(hsv, cv::Scalar(130, 0, 0), cv::Scalar(179, 255, 255), img_red);
-            cv::inRange(hsv, cv::Scalar(60, 50, 0), cv::Scalar(100, 255, 255), img_green);
-            cv::inRange(hsv, cv::Scalar(90, 110, 0), cv::Scalar(130, 178, 255), img_blue);
+            std::vector<cv::Point2f> centers;
+            std::vector<cv::Point2f> balls;
+            cv::KeyPoint::convert(keypts, centers);
 
-            //Clean up the noise
-            img_red = cleanUpNoise(img_red);
-            img_green = cleanUpNoise(img_green);
-            img_blue = cleanUpNoise(img_blue);
+            for(cv::Point2f circle : centers)
+            {
+              cv::Vec3b color = frame.at<cv::Vec3b>(circle.y, circle.x);
+              int b(color.val[0]), g(color.val[1]), r(color.val[2]);
 
-            //Find centroids:
-            std::vector<cv::Point2f> red_center = findCentroids(img_red);
-            std::vector<cv::Point2f> blue_center = findCentroids(img_blue);
-            std::vector<cv::Point2f> green_center = findCentroids(img_green);
+              // if((b < 255 && b > 50) && (g < 255 && g > 50) && (r < 250 && r>200)) //would help get rid of some blobs
+              if(r > b && r > g)
+                cv::circle(frame, circle, 5, cv::Scalar(255, 0, 0), -1);
+              else if(b > r && b > g)
+                cv::circle(frame, circle, 5, cv::Scalar(0, 255, 0), -1);
+              else if(g > r && g > b)
+                cv::circle(frame, circle, 5, cv::Scalar(0, 0, 255), -1);
+            }
 
             //Implement stragegy: will probably return a number indicating what column/position to go to.
             //Can implement default to just go after the ball with the highest points
@@ -223,24 +228,4 @@ cv::Mat cleanUpNoise(cv::Mat noisy_img)
   cv::dilate(img, img, element);
 
   return img;
-}
-
-std::vector<cv::Point2f> findCentroids(cv::Mat diff)
-{
-  //For some reason this finds the centroid twice
-  cv::Mat canny_out;
-  cv::Canny(diff, canny_out, 100, 200, 3); //May need to change the middle two values
-  std::vector<std::vector<cv::Point>> contours;
-  cv::findContours(canny_out, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
-
-  std::vector<cv::Moments> mu(contours.size());
-  std::vector<cv::Point2f> mc(contours.size());
-  for(int i(0); i< contours.size(); i++)
-  {
-    mu[i] = cv::moments(contours[i]);
-    mc[i] = cv::Point2f(static_cast<float>(mu[i].m10/(mu[i].m00+1e-5)),
-                    static_cast<float>(mu[i].m01/(mu[i].m00+1e-5)));
-  }
-
-  return mc;
 }
