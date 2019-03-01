@@ -10,12 +10,11 @@ using namespace std;
 
 // Hue values of basic colors from https://www.opencv-srf.com/2010/09/object-detection-using-color-seperation.html
 //
-// On test img: values may need to be adjusted due to glare
-// These values may work for RGB
-//  Red: H:0-120, S: 0-122, V: 189-255
-//  Blue: H: 170-179, S: 150-205:, V: 120-160
-// Green: H: 107-179, S: 200-255, V:0-130
-
+// From clicking on picture:
+// Red: H = 107, S = 93, V = 77
+// Blue: H = 112, S = 85, V = 87
+// Green: H = 159, S = 98, V = 39
+//
 // These values are for HSV: Note that these may need to be adjusted for glare
 //  Red: H:130-179, S:0-255, V: 0-255
 //  Green: H: 60-100, S:50-255, V:0-255
@@ -24,7 +23,7 @@ using namespace std;
 cv::Mat cleanUpNoise(cv::Mat noisy_img)
 {
   cv::Mat img;
-  cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(7, 7)); //Maybe make this 3, 3
+  cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5)); //Maybe make this 3, 3
   cv::erode(noisy_img, img, element);
   cv::dilate(img, img, element);
 
@@ -62,27 +61,34 @@ int main()
   // std::string filename("plinko_up.avi");
   // std::string filename("plinko_down.avi");
   // std::string filename("plinko_up_lights.avi");
-  std::string filename("plinko_up_board.avi"); //definetly want up, board, probably want lights off
+  // std::string filename("plinko_up_board.avi"); //definetly want up, board, probably want lights off
+
+  std::string filename("plinko_lights_board1.avi");
   cv::VideoCapture cap(filename);
+  // cv::VideoCapture cap(0);
 
   cv::Mat frame, init_frame, diff, g_init, g_frame, hsv;
   cap >> init_frame;
   cv::Rect roi;
   // I am purposefully cutting more out right now for the sake of not having glare
-  roi.x = 200; //160 0r 170 was a good number
+  roi.x = 160; //160 0r 170 was a good number 200 for video
   roi.y = 0;
-  roi.width = 310; //340 was a good number
+  roi.width = 360; //340 was a good number 310 for video
   roi.height = 480;
 
   cv::cvtColor(init_frame, g_init, cv::COLOR_BGR2GRAY);
   init_frame = init_frame(roi);
+  // cv::imwrite("color_values.jpg", init_frame);
   g_init = g_init(roi);
 
   cv::SimpleBlobDetector::Params params;
-  params.minThreshold = 50;
+  params.minThreshold = 100;
   params.maxThreshold = 255; //maybe try by circularity also
   params.filterByColor = true;
   params.blobColor = 255;
+  params.filterByArea = true;
+  params.minArea = 153;
+  params.maxArea = 1256;
 
   cv::Ptr<cv::SimpleBlobDetector> detect = cv::SimpleBlobDetector::create(params);
 
@@ -95,28 +101,29 @@ int main()
     cv::cvtColor(frame, g_frame, cv::COLOR_BGR2GRAY);
     g_frame = g_frame(roi);
     frame = frame(roi);
+    // cv::medianBlur(frame, frame, 5)
     cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
 
     // //Hough Circle method: Will usually get 1 or 2. Sometimes will get 3
-    // cv::absdiff(g_frame, g_init, diff);
+    // cv::absdiff(g_init, g_frame, diff);
     // // diff = g_frame; //Instead of absolute differencing
     //
     // //circle detection
     // std::vector<cv::Vec3f> circles;
     // // //2nd to last entry is min circle radius
-    // cv::medianBlur(diff, diff, 5); //should i do it on diff or g_frame
-    // cv::HoughCircles(diff, circles, cv::HOUGH_GRADIENT, 1, diff.rows/16, 18, 25, 10, 50); //30, 23
+    // // cv::medianBlur(diff, diff, 5); //should i do it on diff or g_frame
+    // cv::HoughCircles(diff, circles, cv::HOUGH_GRADIENT, 1, diff.rows/16, 25, 23, 0, 15); //30, 23
     //
     // std::cout << circles.size() << std::endl;
     // std::vector<cv::Point2f> centers;
     // for(cv::Vec3f circle : circles)
     // {
     //   cv::Point2f center(circle[0], circle[1]);
-    //   cv::circle(frame, center, circle[2], cv::Scalar(0, 0, 255), -1);
+    //   // cv::circle(frame, center, circle[2], cv::Scalar(0, 0, 255), -1);
     //   centers.push_back(center);
     // }
 
-    // Blob detection
+    //Blob detection: Pretty reliably detects all 3 balls
     cv::absdiff(g_init, g_frame, diff);
     cv::threshold(diff, diff, 40, 255, 0);
     diff = cleanUpNoise(diff);
@@ -124,15 +131,28 @@ int main()
     detect->detect(diff, keypts);
 
     std::vector<cv::Point2f> centers;
+    std::vector<cv::Point2f> balls;
     cv::KeyPoint::convert(keypts, centers);
+
     for(cv::Point2f circle : centers)
     {
-      cv::circle(frame, circle, 20, cv::Scalar(0, 0, 255), -1);
+      cv::Vec3b color = frame.at<cv::Vec3b>(circle.y, circle.x);
+      int b(color.val[0]), g(color.val[1]), r(color.val[2]);
+
+      // if((b < 255 && b > 50) && (g < 255 && g > 50) && (r < 250 && r>200)) //would help get rid of some blobs
+      if(r > b && r > g)
+        cv::circle(frame, circle, 5, cv::Scalar(255, 0, 0), -1);
+      else if(b > r && b > g)
+        cv::circle(frame, circle, 5, cv::Scalar(0, 255, 0), -1);
+      else if(g > r && g > b)
+        cv::circle(frame, circle, 5, cv::Scalar(0, 0, 255), -1);
     }
 
     cv::imshow("Diff", diff);
     cv::imshow("Live", frame);
-    cv::waitKey(30);
+    int key = cv::waitKey(30);
+    if(key == (int)('q'))
+      break;
   }
 }
 
