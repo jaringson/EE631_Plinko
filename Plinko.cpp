@@ -34,10 +34,10 @@ void calibrate_camera(cv::Mat frame, cv::Rect& calibrationRect, std::vector<cv::
   // std::vector<cv::Point> pegs;
   for(int i=0;i<numOfPegs;i++)
   {
-    std::cout << "Please click on " << std::to_string(i+1) << " peg. Then press space to Continue." << "\n";
+    std::cout << "Please click on peg " << std::to_string(i+1) << ". Then press space to Continue." << "\n";
     cv::imshow("ImageDisplay", frame);
     cv::waitKey(0);
-    pegs.push_back(cv::Point(mouse_X, mouse_Y));
+    pegs[i] = cv::Point(mouse_X, mouse_Y);
     std::cout << "Point: " << mouse_X << " " << mouse_Y << "\n";
   }
 
@@ -103,8 +103,13 @@ int main(int argc, char** argv)
       for(int i=0;i<numOfPegs;i++)
       {
         cv::circle(frame, pegs[i], 2, cv::Scalar(0, 255, 0));
+        // std::cout << "   " << i << " " << pegs[i] << std::endl;
       }
-      cv::imshow("Calibrated Plinko", frame);
+      cv::Mat croppedImage = frame(cv::Rect(calibrationRect.tl().x,
+        calibrationRect.tl().y,
+        calibrationRect.br().x-calibrationRect.tl().x,
+        calibrationRect.br().y-calibrationRect.tl().y));
+      cv::imshow("Calibrated Plinko", croppedImage);
       cv::waitKey(30);
     }
 
