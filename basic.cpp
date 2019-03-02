@@ -20,6 +20,7 @@ int setupSerial();
 void calibrate_camera(cv::Mat frame, cv::Rect& calibrationRect);
 void calibrate_pegs(cv::Mat frame, std::vector<cv::Point2f>& pegs);
 void on_mouse(int evt, int x, int y, int flags, void* param);
+void prepImg(cv::Mat &g_init, cv::Mat &g_frame, cv::Mat &diff);
 cv::Mat cleanUpNoise(cv::Mat noisy_img);
 std::vector<cv::Point2f> findCentroids(cv::Mat diff);
 void sendMotorToCol(int col);
@@ -96,10 +97,9 @@ int main(int, char**)
             cv::cvtColor(frame, g_frame, cv::COLOR_BGR2GRAY);
             frame = frame(roi);
             g_frame = g_frame(roi);
-            cv::absdiff(g_init, g_frame, diff);
-            cv::threshold(diff, diff, 40, 255, 0);
-            std::cout << "3\n";
-            diff = cleanUpNoise(diff);
+
+            prepImg(g_init, g_frame, diff);
+
             std::vector<cv::KeyPoint> keypts;
             detect->detect(diff, keypts);
 
@@ -242,16 +242,7 @@ void calibrate_camera(cv::Mat frame, cv::Rect& calibrationRect)
 
   calibrationRect = cv::Rect(tl,br);
 
-  // int numOfPegs(11);  //Note that we need to do this after the iamge is cropped
-  // for(int i=0;i<numOfPegs;i++)
-  // {
-  //   std::cout << "Please click on peg " << std::to_string(i+1) << ". Then press space to Continue." << "\n";
-  //   cv::waitKey(0);
-  //   pegs.push_back(cv::Point2f(mouse_X, mouse_Y));
-  //   std::cout << "Point: " << mouse_X << " " << mouse_Y << "\n";
-  // }
-  //
-  // cv::destroyWindow("ImageDisplay");
+  cv::destroyWindow("ImageDisplay");
 }
 
 void calibrate_pegs(cv::Mat frame, std::vector<cv::Point2f>& pegs)
@@ -272,6 +263,13 @@ void calibrate_pegs(cv::Mat frame, std::vector<cv::Point2f>& pegs)
   }
 
   cv::destroyWindow("ImageDisplay");
+}
+
+void prepImg(cv::Mat &g_init, cv::Mat &g_frame, cv::Mat &diff)
+{
+  cv::absdiff(g_init, g_frame, diff);
+  cv::threshold(diff, diff, 40, 255, 0);
+  diff = cleanUpNoise(diff);
 }
 
 void on_mouse(int evt, int x, int y, int flags, void* param)
