@@ -44,35 +44,38 @@ int main(int, char**)
     cv::Rect calibrationRect(cv::Point(-1,-1),cv::Point(-1,-1));
     std::vector<cv::Point2f> pegs;
 
-   std::cout << "Enter 'c' to calibrate. Hit another key to read in file:\n";
-   // char key = cv::waitKey(30); // For some reason it is not waiting here
-   // std::cout << key << std::endl;
-   // if(key == 'c')
+   std::cout << "Enter 'c' to calibrate. Hit another key to read in file:" << std::endl;
+   int key;
+   cv::imshow("Temp", frameLast);
+   key = cv::waitKey(0); // For some reason it is not waiting here
+   std::cout << key << std::endl;
+   if(key == (int)('c'))
       calibrate_camera(frameLast, calibrationRect);
-//    else
-//    {
-//      ////// For Reading in the calibration file
-//      cv::FileStorage fs_in("calibration.yaml",cv::FileStorage::READ);
-//      fs_in["CalibrationRectangle"] >> calibrationRect;
-//      fs_in["Pegs"] >> pegs;
-//      fs_in.release();
-//    }
+   else
+   {
+     //// For Reading in the calibration file
+     cv::FileStorage fs_in("calibration.yaml",cv::FileStorage::READ);
+     fs_in["CalibrationRectangle"] >> calibrationRect;
+     fs_in["Pegs"] >> pegs;
+     fs_in.release();
+   }
 
-    ////// For savingin off the calibration file
-//    cv::FileStorage fs_out("calibration.yaml",cv::FileStorage::WRITE);
-//    fs_out << "CalibrationRectangle" << calibrationRect;
-//    fs_out << "Pegs" << pegs;
-//    fs_out.release();
+   cv::Rect roi = cv::Rect(calibrationRect.tl().x,
+   calibrationRect.tl().y,
+   calibrationRect.br().x-calibrationRect.tl().x,
+   calibrationRect.br().y-calibrationRect.tl().y);
 
-    cv::Rect roi = cv::Rect(calibrationRect.tl().x,
-    calibrationRect.tl().y,
-    calibrationRect.br().x-calibrationRect.tl().x,
-    calibrationRect.br().y-calibrationRect.tl().y);
+   // Crop the initial image
+   frameLast = frameLast(roi);
+   g_init = g_init(roi);
+   if(key == (int)('c'))
+     calibrate_pegs(frameLast, pegs);
 
-    // Crop the initial image
-    frameLast = frameLast(roi);
-    g_init = g_init(roi);
-    calibrate_pegs(frameLast, pegs);
+    //// For savingin off the calibration file
+   cv::FileStorage fs_out("calibration.yaml",cv::FileStorage::WRITE);
+   fs_out << "CalibrationRectangle" << calibrationRect;
+   fs_out << "Pegs" << pegs;
+   fs_out.release();
 
     //Set up blob detector
     cv::SimpleBlobDetector::Params params = setupParams();
