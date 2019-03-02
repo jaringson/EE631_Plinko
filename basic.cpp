@@ -23,6 +23,7 @@ void on_mouse(int evt, int x, int y, int flags, void* param);
 void prepImg(cv::Mat &g_init, cv::Mat &g_frame, cv::Mat &diff);
 cv::Mat cleanUpNoise(cv::Mat noisy_img);
 cv::SimpleBlobDetector::Params setupParams();
+void drawCircles(cv::Mat& frame, std::vector<cv::Point2f> &centers, std::vector<cv::Point2f> balls);
 void sendMotorToCol(int col);
 
 int main(int, char**)
@@ -63,15 +64,15 @@ int main(int, char**)
 //    fs_out << "Pegs" << pegs;
 //    fs_out.release();
 
-   cv::Rect roi = cv::Rect(calibrationRect.tl().x,
-     calibrationRect.tl().y,
-     calibrationRect.br().x-calibrationRect.tl().x,
-     calibrationRect.br().y-calibrationRect.tl().y);
+    cv::Rect roi = cv::Rect(calibrationRect.tl().x,
+    calibrationRect.tl().y,
+    calibrationRect.br().x-calibrationRect.tl().x,
+    calibrationRect.br().y-calibrationRect.tl().y);
 
     // Crop the initial image
     frameLast = frameLast(roi);
-     g_init = g_init(roi);
-     calibrate_pegs(frameLast, pegs);
+    g_init = g_init(roi);
+    calibrate_pegs(frameLast, pegs);
 
     //Set up blob detector
     cv::SimpleBlobDetector::Params params = setupParams();
@@ -96,32 +97,12 @@ int main(int, char**)
             std::vector<cv::KeyPoint> keypts;
             detect->detect(diff, keypts);
 
-            std::vector<cv::Point2f> centers;
-            std::vector<cv::Point2f> balls(3); //red is first, blue is second, green is third
-            cv::KeyPoint::convert(keypts, centers);
+            std::vector<cv::Point2f> balls;
+            cv::KeyPoint::convert(keypts, balls);
 
-            for(cv::Point2f circle : centers)
-            {
-              cv::Vec3b color = frame.at<cv::Vec3b>(circle.y, circle.x);
-              int b(color.val[0]), g(color.val[1]), r(color.val[2]);
-
-              // if((b < 255 && b > 50) && (g < 255 && g > 50) && (r < 250 && r>200)) //would help get rid of some blobs
-              if(r > b && r > g)
-              {
-                cv::circle(frame, circle, 5, cv::Scalar(255, 0, 0), -1);
-                balls[0] = circle;
-              }
-              else if(b > r && b > g)
-              {
-                cv::circle(frame, circle, 5, cv::Scalar(0, 255, 0), -1);
-                balls[2] = circle;
-              }
-              else if(g > r && g > b)
-              {
-                cv::circle(frame, circle, 5, cv::Scalar(0, 0, 255), -1);
-                balls[1] = circle;
-              }
-            }
+            //Draw circle on the balls
+            std::vector<cv::Point2f> centers(3); //red is first, blue is second, green is third
+            drawCircles(frame, centers, balls);
 
             //Implement stragegy: will probably return a number indicating what column/position to go to.
             //Can implement default to just go after the ball with the highest points
@@ -295,6 +276,32 @@ cv::SimpleBlobDetector::Params setupParams()
   params.maxArea = 1256;
 
   return params;
+}
+
+void drawCircles(cv::Mat& frame, std::vector<cv::Point2f> &centers, std::vector<cv::Point2f> balls)
+{
+  for(cv::Point2f circle : balls)
+  {
+    cv::Vec3b color = frame.at<cv::Vec3b>(circle.y, circle.x);
+    int b(color.val[0]), g(color.val[1]), r(color.val[2]);
+
+    // if((b < 255 && b > 50) && (g < 255 && g > 50) && (r < 250 && r>200)) //would help get rid of some blobs
+    if(r > b && r > g)
+    {
+      cv::circle(frame, circle, 5, cv::Scalar(255, 0, 0), -1);
+      centers[0] = circle;
+    }
+    else if(b > r && b > g)
+    {
+      cv::circle(frame, circle, 5, cv::Scalar(0, 255, 0), -1);
+      centers[2] = circle;
+    }
+    else if(g > r && g > b)
+    {
+      cv::circle(frame, circle, 5, cv::Scalar(0, 0, 255), -1);
+      centers[1] = circle;
+    }
+  }
 }
 
 void sendMotorToCol(int col)
