@@ -436,11 +436,11 @@ int getLowestBall(const std::vector<cv::Point2f>& centers, const std::vector<cv:
     }
 
     // TODO Edit this if statement
-    if(y_prev < pegs[0].y + 30)
-    {
-        y_prev = lowest;
-        return -1;
-    }
+//    if(y_prev < pegs[0].y + 30)
+//    {
+//        y_prev = lowest;
+//        return -1;
+//    }
     y_prev = lowest;
 
     int col_cmd{getColFromPixel(centers[index].x, pegs)};
