@@ -309,4 +309,3 @@ void sendMotorToCol(int col)
     else
         sendCommand("g24\n");
 }
-
