@@ -43,7 +43,7 @@ int main(int, char**)
     int prev_col_cmd{0};
     Mat frameLast, g_init;
     // VideoCapture cap(0); // open the default camera
-   VideoCapture cap("plinko_vids/test3.avi");
+   VideoCapture cap("plinko_vids/test4.avi");
     // setupSerial();
     if(!cap.isOpened())  // check if we succeeded
         return -1;
@@ -435,11 +435,10 @@ int getLowestBall(const std::vector<cv::Point2f>& centers, const std::vector<cv:
       lowest = b_y;
     }
 
-    std::cout << "Difference\t" << abs(lowest-y_prev) << std::endl;
-    if(abs(lowest-y_prev) > 10 && y_prev < pegs[0].y + 45)
+    // TODO Edit this if statement
+    if(y_prev < pegs[0].y + 30)
     {
         y_prev = lowest;
-        std::cout << "lost frame\t" << y_prev << "\t" << index << std::endl;
         return -1;
     }
     y_prev = lowest;
