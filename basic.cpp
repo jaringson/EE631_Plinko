@@ -125,7 +125,7 @@ int main(int, char**)
             if (col_cmd != -1)
                 std::cout << col_cmd << std::endl;
 
-            col_cmd = (col_cmd == -1) ? col_cmd = prev_col_cmd : col_cmd;
+            col_cmd = (col_cmd == -1) ? prev_col_cmd : col_cmd;
 
             imshow("Camera Input", frame);
             imshow("AbsDiff", diff);
