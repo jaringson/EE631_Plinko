@@ -40,7 +40,7 @@ int main(int, char**)
     int prev_col_cmd{0};
     Mat frameLast, g_init;
 //    VideoCapture cap(0); // open the default camera
-    VideoCapture cap("plinko_lights_board3.avi");
+    VideoCapture cap("plinko_lights_board1.avi");
 //    setupSerial();
     if(!cap.isOpened())  // check if we succeeded
         return -1;
@@ -113,6 +113,7 @@ int main(int, char**)
             cv::KeyPoint::convert(keypts, balls);
 
             //Draw circle on the balls
+            //If there is no center detected the Point will show 0, 0
             std::vector<cv::Point2f> centers(3); //red is first, blue is second, green is third
             drawCircles(frame, centers, balls);
 
@@ -386,8 +387,6 @@ int getColFromPixel(int x_pixel,const std::vector<cv::Point2f>& pegs)
 int catchRedBall(const std::vector<cv::Point2f>& balls, const
                   std::vector<cv::Point2f>& pegs)
 {
-   // int col_cmd{5};
-   std::cout << balls[0].x << std::endl;
    int col_cmd{getColFromPixel(balls[0].x, pegs)};
 
    return col_cmd;
