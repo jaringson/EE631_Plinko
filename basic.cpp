@@ -23,14 +23,14 @@ void on_mouse(int evt, int x, int y, int flags, void* param);
 void prepImg(cv::Mat &g_init, cv::Mat &g_frame, cv::Mat &diff);
 cv::Mat cleanUpNoise(cv::Mat noisy_img);
 cv::SimpleBlobDetector::Params setupParams();
-void drawCircles(cv::Mat& frame, std::vector<cv::Point2f> &centers, 
+void drawCircles(cv::Mat& frame, std::vector<cv::Point2f> &centers,
                  std::vector<cv::Point2f> balls);
 void sendMotorToCol(int col);
 int overrideMotorWithKeyPress(char key, int& col_cmd);
 
 // catching options
 int getColFromPixel(int x_pixel,const std::vector<cv::Point2f>& pegs);
-int catchRedBall(const std::vector<cv::Point2f>& balls, const 
+int catchRedBall(const std::vector<cv::Point2f>& balls, const
                   std::vector<cv::Point2f>& pegs);
 
 int main(int, char**)
@@ -40,14 +40,14 @@ int main(int, char**)
     int prev_col_cmd{0};
     Mat frameLast, g_init;
 //    VideoCapture cap(0); // open the default camera
-    VideoCapture cap("plinko_lights_board1.avi");
+    VideoCapture cap("plinko_lights_board3.avi");
 //    setupSerial();
     if(!cap.isOpened())  // check if we succeeded
         return -1;
 
     cap >> frameLast;
     cv::cvtColor(frameLast, g_init, cv::COLOR_BGR2GRAY);
-    sendCommand("h\n"); // Home the motor and encoder
+    // sendCommand("h\n"); // Home the motor and encoder
 
     //Setting up our calibration stuff here
     cv::Rect calibrationRect(cv::Point(-1,-1),cv::Point(-1,-1));
@@ -118,7 +118,10 @@ int main(int, char**)
 
             // go for red ball only (highest point ball)
             if (balls.size() == 3)
-                col_cmd = catchRedBall(balls, pegs);
+            {
+                col_cmd = catchRedBall(centers, pegs);
+                std::cout << col_cmd << std::endl;
+            }
 
             imshow("Camera Input", frame);
             char key;
@@ -128,8 +131,8 @@ int main(int, char**)
             if (key == 'q')
 	            break;
 
-            if (col_cmd != prev_col_cmd)
-                sendMotorToCol(col_cmd);
+            // if (col_cmd != prev_col_cmd)
+                // sendMotorToCol(col_cmd);
             prev_col_cmd = col_cmd;
         }
         else
@@ -214,7 +217,7 @@ void calibrate_pegs(cv::Mat frame, std::vector<cv::Point2f>& pegs)
     int numOfPegs(11); //Note that we need to do this after the iamge is cropped
     for(int i=0;i<numOfPegs;i++)
     {
-        std::cout << "Please click on peg " << std::to_string(i+1) << 
+        std::cout << "Please click on peg " << std::to_string(i+1) <<
                      ". Then press space to Continue." << "\n";
         cv::waitKey(0);
         pegs.push_back(cv::Point2f(mouse_X, mouse_Y));
@@ -233,7 +236,7 @@ void prepImg(cv::Mat &g_init, cv::Mat &g_frame, cv::Mat &diff)
 
 void on_mouse(int evt, int x, int y, int flags, void* param)
 {
-    if(evt == cv::EVENT_LBUTTONDOWN) 
+    if(evt == cv::EVENT_LBUTTONDOWN)
     { //CV_EVENT_LBUTTONDOWN
         mouse_X = x;
         mouse_Y = y;
@@ -243,7 +246,7 @@ void on_mouse(int evt, int x, int y, int flags, void* param)
 cv::Mat cleanUpNoise(cv::Mat noisy_img)
 {
     cv::Mat img;
-    
+
     //Maybe make this 3, 3
     cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5));
     cv::erode(noisy_img, img, element);
@@ -376,12 +379,16 @@ int getColFromPixel(int x_pixel,const std::vector<cv::Point2f>& pegs)
         else
             col = 10;
     }
+
+    return col;
 }
 
-int catchRedBall(const std::vector<cv::Point2f>& balls, const 
+int catchRedBall(const std::vector<cv::Point2f>& balls, const
                   std::vector<cv::Point2f>& pegs)
 {
-   int col_cmd{5};
+   // int col_cmd{5};
+   std::cout << balls[0].x << std::endl;
+   int col_cmd{getColFromPixel(balls[0].x, pegs)};
 
    return col_cmd;
 }
