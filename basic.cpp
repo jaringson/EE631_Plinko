@@ -27,8 +27,9 @@ int main(int, char**)
 {
     int frameCounter = 0;
     Mat frameLast, g_init;
-    VideoCapture cap(0); // open the default camera
-    setupSerial();
+    // VideoCapture cap(0); // open the default camera
+    VideoCapture cap("plinko_lights_board1.avi");
+    // setupSerial();
     if(!cap.isOpened())  // check if we succeeded
         return -1;
 
@@ -40,9 +41,10 @@ int main(int, char**)
     cv::Rect calibrationRect(cv::Point(-1,-1),cv::Point(-1,-1));
     std::vector<cv::Point2f> pegs;
 
-//    std::cout << "Enter 'c' to calibrate. Hit another key to read in file:\n";
-//    int key = cv::waitKey(0);
-//    if(key == (int)('c'))
+   std::cout << "Enter 'c' to calibrate. Hit another key to read in file:\n";
+   // char key = cv::waitKey(30); // For some reason it is not waiting here
+   // std::cout << key << std::endl;
+   // if(key == 'c')
       calibrate_camera(frameLast, calibrationRect, pegs);
 //    else
 //    {
@@ -59,13 +61,13 @@ int main(int, char**)
 //    fs_out << "Pegs" << pegs;
 //    fs_out.release();
 
-//    cv::Rect roi = cv::Rect(calibrationRect.tl().x,
-//      calibrationRect.tl().y,
-//      calibrationRect.br().x-calibrationRect.tl().x,
-//      calibrationRect.br().y-calibrationRect.tl().y);
+   cv::Rect roi = cv::Rect(calibrationRect.tl().x,
+     calibrationRect.tl().y,
+     calibrationRect.br().x-calibrationRect.tl().x,
+     calibrationRect.br().y-calibrationRect.tl().y);
 
     // Crop the initial image
-//    g_init = frameLast(roi);
+     g_init = g_init(roi);
 
     //Set up blob detector
     cv::SimpleBlobDetector::Params params;
@@ -84,15 +86,16 @@ int main(int, char**)
         Mat frame, g_frame, diff;
 
         cap >> frame; // get a new frame from camera
-        cv::cvtColor(frame, g_frame, cv::COLOR_BGR2GRAY);
-//        frame = frame(roi);
-//        g_frame = g_frame(roi);
 
 	      if(!frame.empty())
         {
             //ADD YOUR CODE HERE
+            cv::cvtColor(frame, g_frame, cv::COLOR_BGR2GRAY);
+            frame = frame(roi);
+            g_frame = g_frame(roi);
             cv::absdiff(g_init, g_frame, diff);
             cv::threshold(diff, diff, 40, 255, 0);
+            std::cout << "3\n";
             diff = cleanUpNoise(diff);
             std::vector<cv::KeyPoint> keypts;
             detect->detect(diff, keypts);
@@ -151,8 +154,8 @@ int main(int, char**)
                     sendMotorToCol(9);
                 else if (key == 'p')
                     sendMotorToCol(10);
-		else if (key == 'b')
-		    break;
+		            else if (key == 'b')
+		                break;
 
             // Command structure is very simple
             // "h\n" is to home the motor
@@ -167,6 +170,8 @@ int main(int, char**)
 //                sendCommand("g50\n");
 //            }
         }
+        else
+          break;
     }
     // the camera will be deinitialized automatically in VideoCapture destructor
     return 0;
