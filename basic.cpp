@@ -22,7 +22,7 @@ void calibrate_pegs(cv::Mat frame, std::vector<cv::Point2f>& pegs);
 void on_mouse(int evt, int x, int y, int flags, void* param);
 void prepImg(cv::Mat &g_init, cv::Mat &g_frame, cv::Mat &diff);
 cv::Mat cleanUpNoise(cv::Mat noisy_img);
-std::vector<cv::Point2f> findCentroids(cv::Mat diff);
+cv::SimpleBlobDetector::Params setupParams();
 void sendMotorToCol(int col);
 
 int main(int, char**)
@@ -74,14 +74,7 @@ int main(int, char**)
      calibrate_pegs(frameLast, pegs);
 
     //Set up blob detector
-    cv::SimpleBlobDetector::Params params;
-    params.minThreshold = 100;
-    params.maxThreshold = 255; //maybe try by circularity also
-    params.filterByColor = true;
-    params.blobColor = 255;
-    params.filterByArea = true;
-    params.minArea = 153;
-    params.maxArea = 1256;
+    cv::SimpleBlobDetector::Params params = setupParams();
     cv::Ptr<cv::SimpleBlobDetector> detect = cv::SimpleBlobDetector::create(params);
 
     for(;;)
@@ -290,24 +283,18 @@ cv::Mat cleanUpNoise(cv::Mat noisy_img)
   return img;
 }
 
-std::vector<cv::Point2f> findCentroids(cv::Mat diff)
+cv::SimpleBlobDetector::Params setupParams()
 {
-  //For some reason this finds the centroid twice
-  cv::Mat canny_out;
-  cv::Canny(diff, canny_out, 100, 200, 3); //May need to change the middle two values
-  std::vector<std::vector<cv::Point>> contours;
-  cv::findContours(canny_out, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+  cv::SimpleBlobDetector::Params params;
+  params.minThreshold = 100;
+  params.maxThreshold = 255; //maybe try by circularity also
+  params.filterByColor = true;
+  params.blobColor = 255;
+  params.filterByArea = true;
+  params.minArea = 153;
+  params.maxArea = 1256;
 
-  std::vector<cv::Moments> mu(contours.size());
-  std::vector<cv::Point2f> mc(contours.size());
-  for(int i(0); i< contours.size(); i++)
-  {
-    mu[i] = cv::moments(contours[i]);
-    mc[i] = cv::Point2f(static_cast<float>(mu[i].m10/(mu[i].m00+1e-5)),
-                    static_cast<float>(mu[i].m01/(mu[i].m00+1e-5)));
-  }
-
-  return mc;
+  return params;
 }
 
 void sendMotorToCol(int col)
