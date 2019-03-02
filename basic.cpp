@@ -32,6 +32,8 @@ int overrideMotorWithKeyPress(char key, int& col_cmd);
 int getColFromPixel(int x_pixel,const std::vector<cv::Point2f>& pegs);
 int catchRedBall(const std::vector<cv::Point2f>& balls, const
                   std::vector<cv::Point2f>& pegs);
+int getLowestBall(const std::vector<cv::Point2f>& centers,
+                  const std::vector<cv::Point2f>& pegs);
 
 int main(int, char**)
 {
@@ -40,7 +42,7 @@ int main(int, char**)
     int prev_col_cmd{0};
     Mat frameLast, g_init;
 //    VideoCapture cap(0); // open the default camera
-    VideoCapture cap("plinko_lights_board1.avi");
+    VideoCapture cap("plinko_lights_board3.avi");
 //    setupSerial();
     if(!cap.isOpened())  // check if we succeeded
         return -1;
@@ -118,11 +120,13 @@ int main(int, char**)
             drawCircles(frame, centers, balls);
 
             // go for red ball only (highest point ball)
-            if (balls.size() == 3)
-            {
-                col_cmd = catchRedBall(centers, pegs);
-                std::cout << col_cmd << std::endl;
-            }
+            // if (balls.size() == 3)
+            // {
+            //     col_cmd = catchRedBall(centers, pegs);
+            //     std::cout << col_cmd << std::endl;
+            // }
+            col_cmd = getLowestBall(centers, pegs);
+            std::cout << col_cmd << std::endl;
 
             imshow("Camera Input", frame);
             char key;
@@ -390,4 +394,29 @@ int catchRedBall(const std::vector<cv::Point2f>& balls, const
    int col_cmd{getColFromPixel(balls[0].x, pegs)};
 
    return col_cmd;
+}
+
+int getLowestBall(const std::vector<cv::Point2f>& centers, const std::vector<cv::Point2f>& pegs)
+{
+  double r_y{centers[0].y}, b_y{centers[2].y}, g_y{centers[1].y};
+
+  //Check if the center was actually found
+  if(r_y == 0.0)
+    r_y = 1000.0;
+  if(b_y == 0.0)
+    b_y = 1000.0;
+  if(g_y == 0.0)
+    g_y = 1000.0;
+
+    int index;
+    if(r_y < b_y && r_y < g_y)
+      index = 0;
+    else if(g_y < r_y && g_y < b_y)
+      index = 1;
+    else //(b_y < r_y && b_y < g_y)
+      index = 2;
+
+    int col_cmd{getColFromPixel(centers[index].x, pegs)};
+
+    return col_cmd;
 }
