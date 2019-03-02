@@ -288,17 +288,17 @@ void drawCircles(cv::Mat& frame, std::vector<cv::Point2f> &centers, std::vector<
     // if((b < 255 && b > 50) && (g < 255 && g > 50) && (r < 250 && r>200)) //would help get rid of some blobs
     if(r > b && r > g)
     {
-      cv::circle(frame, circle, 5, cv::Scalar(255, 0, 0), -1);
+      cv::circle(frame, circle, 5, cv::Scalar(0, 0, 255), 8);
       centers[0] = circle;
     }
     else if(b > r && b > g)
     {
-      cv::circle(frame, circle, 5, cv::Scalar(0, 255, 0), -1);
+      cv::circle(frame, circle, 5, cv::Scalar(255, 0, 0), 8);
       centers[2] = circle;
     }
     else if(g > r && g > b)
     {
-      cv::circle(frame, circle, 5, cv::Scalar(0, 0, 255), -1);
+      cv::circle(frame, circle, 5, cv::Scalar(0, 255, 0), 8);
       centers[1] = circle;
     }
   }
