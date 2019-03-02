@@ -17,7 +17,8 @@ using namespace cv;
 
 void sendCommand(const char* command);
 int setupSerial();
-void calibrate_camera(cv::Mat frame, cv::Rect& calibrationRect, std::vector<cv::Point2f>& pegs);
+void calibrate_camera(cv::Mat frame, cv::Rect& calibrationRect);
+void calibrate_pegs(cv::Mat frame, std::vector<cv::Point2f>& pegs);
 void on_mouse(int evt, int x, int y, int flags, void* param);
 cv::Mat cleanUpNoise(cv::Mat noisy_img);
 std::vector<cv::Point2f> findCentroids(cv::Mat diff);
@@ -45,7 +46,7 @@ int main(int, char**)
    // char key = cv::waitKey(30); // For some reason it is not waiting here
    // std::cout << key << std::endl;
    // if(key == 'c')
-      calibrate_camera(frameLast, calibrationRect, pegs);
+      calibrate_camera(frameLast, calibrationRect);
 //    else
 //    {
 //      ////// For Reading in the calibration file
@@ -67,7 +68,9 @@ int main(int, char**)
      calibrationRect.br().y-calibrationRect.tl().y);
 
     // Crop the initial image
+    frameLast = frameLast(roi);
      g_init = g_init(roi);
+     calibrate_pegs(frameLast, pegs);
 
     //Set up blob detector
     cv::SimpleBlobDetector::Params params;
@@ -220,7 +223,7 @@ int setupSerial()
     return 0;
 }
 
-void calibrate_camera(cv::Mat frame, cv::Rect& calibrationRect, std::vector<cv::Point2f>& pegs)
+void calibrate_camera(cv::Mat frame, cv::Rect& calibrationRect)
 {
   cv::namedWindow("ImageDisplay", 1);
   cv::setMouseCallback("ImageDisplay", on_mouse, (void*)&points);
@@ -238,6 +241,26 @@ void calibrate_camera(cv::Mat frame, cv::Rect& calibrationRect, std::vector<cv::
   std::cout << "Point: " << mouse_X << " " << mouse_Y << "\n";
 
   calibrationRect = cv::Rect(tl,br);
+
+  // int numOfPegs(11);  //Note that we need to do this after the iamge is cropped
+  // for(int i=0;i<numOfPegs;i++)
+  // {
+  //   std::cout << "Please click on peg " << std::to_string(i+1) << ". Then press space to Continue." << "\n";
+  //   cv::waitKey(0);
+  //   pegs.push_back(cv::Point2f(mouse_X, mouse_Y));
+  //   std::cout << "Point: " << mouse_X << " " << mouse_Y << "\n";
+  // }
+  //
+  // cv::destroyWindow("ImageDisplay");
+}
+
+void calibrate_pegs(cv::Mat frame, std::vector<cv::Point2f>& pegs)
+{
+  cv::namedWindow("ImageDisplay", 1);
+  cv::setMouseCallback("ImageDisplay", on_mouse, (void*)&points);
+
+  cv::imshow("ImageDisplay", frame);
+  cv::waitKey(30);
 
   int numOfPegs(11);  //Note that we need to do this after the iamge is cropped
   for(int i=0;i<numOfPegs;i++)
