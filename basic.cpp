@@ -22,10 +22,18 @@ void on_mouse(int evt, int x, int y, int flags, void* param);
 cv::Mat cleanUpNoise(cv::Mat noisy_img);
 std::vector<cv::Point2f> findCentroids(cv::Mat diff);
 void sendMotorToCol(int col);
+int overrideMotorWithKeyPress(char key, int& col_cmd);
+
+// catching options
+int getColFromPixel(int x_pixel,const std::vector<cv::Point2f>& pegs);
+int catchRedBall(const std::vector<cv::Point2f>& balls, const 
+                  std::vector<cv::Point2f>& pegs);
 
 int main(int, char**)
 {
     int frameCounter = 0;
+    int col_cmd{5};
+    int prev_col_cmd{0};
     Mat frameLast, g_init;
     VideoCapture cap(0); // open the default camera
     setupSerial();
@@ -43,7 +51,7 @@ int main(int, char**)
 //    std::cout << "Enter 'c' to calibrate. Hit another key to read in file:\n";
 //    int key = cv::waitKey(0);
 //    if(key == (int)('c'))
-      calibrate_camera(frameLast, calibrationRect, pegs);
+    calibrate_camera(frameLast, calibrationRect, pegs);
 //    else
 //    {
 //      ////// For Reading in the calibration file
@@ -60,9 +68,9 @@ int main(int, char**)
 //    fs_out.release();
 
 //    cv::Rect roi = cv::Rect(calibrationRect.tl().x,
-//      calibrationRect.tl().y,
-//      calibrationRect.br().x-calibrationRect.tl().x,
-//      calibrationRect.br().y-calibrationRect.tl().y);
+//    calibrationRect.tl().y,
+//    calibrationRect.br().x-calibrationRect.tl().x,
+//    calibrationRect.br().y-calibrationRect.tl().y);
 
     // Crop the initial image
 //    g_init = frameLast(roi);
@@ -88,7 +96,7 @@ int main(int, char**)
 //        frame = frame(roi);
 //        g_frame = g_frame(roi);
 
-	      if(!frame.empty())
+	    if(!frame.empty())
         {
             //ADD YOUR CODE HERE
             cv::absdiff(g_init, g_frame, diff);
@@ -124,52 +132,24 @@ int main(int, char**)
               }
             }
 
-            //Implement stragegy: will probably return a number indicating what column/position to go to.
-            //Can implement default to just go after the ball with the highest points
-            //Column:cm : 1:6cm, 2:11cm, 3:16cm, 4:21cm, 5:26cm, 6:31cm, 7:36cm, 8:41cm, 9:46/47cm, 10:51/52cm
+            // go for red ball only (highest point ball)
+            if (balls.size() == 3)
+                col_cmd = catchRedBall(balls, pegs);
 
-        		imshow("Camera Input", frame);
-                char key;
-        		key = waitKey(10);
-                if (key == '1')
-                    sendMotorToCol(1);
-                else if (key == '2')
-                    sendMotorToCol(2);
-                else if (key == '3')
-                    sendMotorToCol(3);
-                else if (key == '4')
-                    sendMotorToCol(4);
-                else if (key == '5')
-                    sendMotorToCol(5);
-                else if (key == '6')
-                    sendMotorToCol(6);
-                else if (key == '7')
-                    sendMotorToCol(7);
-                else if (key == '8')
-                    sendMotorToCol(8);
-                else if (key == '9')
-                    sendMotorToCol(9);
-                else if (key == '0')
-                    sendMotorToCol(10);
-		        else if (key == 'q')
-		            break;
+        	imshow("Camera Input", frame);
+            char key;
+            key = waitKey(1);
 
-            // Command structure is very simple
-            // "h\n" is to home the motor
-            // "g<integer range 7 to 53>\n" sends the motor to that position in cm
-            // e.g. "g35\n" sends the motor to 35cm from left wall
-//            if(frameCounter%200==0)
-//            {
-//                sendCommand("g10\n");
-//            }
-//            else if(frameCounter%100==0)
-//            {
-//                sendCommand("g50\n");
-//            }
+            overrideMotorWithKeyPress(key, col_cmd);
+            if (key == 'q')
+		        break;
+
+            if (col_cmd != prev_col_cmd)
+                sendMotorToCol(col_cmd);
+            prev_col_cmd = col_cmd;
         }
     }
-    // the camera will be deinitialized automatically in VideoCapture destructor
-    return 0;
+    return 0; // end of main
 }
 
 void sendCommand(const char* command)
@@ -286,6 +266,10 @@ std::vector<cv::Point2f> findCentroids(cv::Mat diff)
 
 void sendMotorToCol(int col)
 {
+    // Command structure is very simple
+    // "h\n" is to home the motor
+    // "g<integer range 7 to 53>\n" sends the motor to that position in cm
+    // e.g. "g35\n" sends the motor to 35cm from left wall
     if (col == 5)
         sendCommand("g25\n");
     else if (col == 6)
@@ -307,5 +291,69 @@ void sendMotorToCol(int col)
     else if (col == 10)
         sendCommand("g51\n");
     else
-        sendCommand("g24\n");
+        sendCommand("g25\n");
+}
+
+int overrideMotorWithKeyPress(char key, int& col_cmd)
+{
+    if (key == '1')
+        col_cmd = 1;
+    else if (key == '2')
+        col_cmd = 2;
+    else if (key == '3')
+        col_cmd = 3;
+    else if (key == '4')
+        col_cmd = 4;
+    else if (key == '5')
+        col_cmd = 5;
+    else if (key == '6')
+        col_cmd = 6;
+    else if (key == '7')
+        col_cmd = 7;
+    else if (key == '8')
+        col_cmd = 8;
+    else if (key == '9')
+        col_cmd = 9;
+    else if (key == '0')
+        col_cmd = 10;
+}
+
+// TODO check if it is really x that is needed
+int getColFromPixel(int x_pixel,const std::vector<cv::Point2f>& pegs)
+{
+    int col;
+    if (x_pixel < pegs[5].x)
+    {
+        if (x_pixel > pegs[4].x)
+            col = 5;
+        else if (x_pixel > pegs[3].x)
+            col = 4;
+        else if (x_pixel > pegs[2].x)
+            col = 3;
+        else if (x_pixel > pegs[1].x)
+            col = 2;
+        else
+            col = 1;
+    }
+    else
+    {
+        if (x_pixel < pegs[6].x)
+            col = 6;
+        else if (x_pixel < pegs[7].x)
+            col = 7;
+        else if (x_pixel < pegs[8].x)
+            col = 8;
+        else if (x_pixel < pegs[9].x)
+            col = 9;
+        else
+            col = 10;
+    }
+}
+
+int catchRedBall(const std::vector<cv::Point2f>& balls, const 
+                  std::vector<cv::Point2f>& pegs)
+{
+   int col_cmd{5};
+
+   return col_cmd;
 }
