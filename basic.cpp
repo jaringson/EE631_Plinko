@@ -2,6 +2,7 @@
 #include <opencv2/features2d.hpp>
 #include <vector>
 #include <iostream>
+#include <cmath>
 
 #include <errno.h>
 #include <unistd.h>
@@ -41,15 +42,15 @@ int main(int, char**)
     int col_cmd{5};
     int prev_col_cmd{0};
     Mat frameLast, g_init;
-//    VideoCapture cap(0); // open the default camera
-    VideoCapture cap("plinko_lights_board3.avi");
-//    setupSerial();
+    VideoCapture cap(0); // open the default camera
+//    VideoCapture cap("plinko_lights_board3.avi");
+    setupSerial();
     if(!cap.isOpened())  // check if we succeeded
         return -1;
 
     cap >> frameLast;
     cv::cvtColor(frameLast, g_init, cv::COLOR_BGR2GRAY);
-    // sendCommand("h\n"); // Home the motor and encoder
+    sendCommand("h\n"); // Home the motor and encoder
 
     //Setting up our calibration stuff here
     cv::Rect calibrationRect(cv::Point(-1,-1),cv::Point(-1,-1));
@@ -119,13 +120,15 @@ int main(int, char**)
             std::vector<cv::Point2f> centers(3); //red is first, blue is second, green is third
             drawCircles(frame, centers, balls);
 
-//            col_cmd = catchRedBall(centers, pegs);
+            // col_cmd = catchRedBall(centers, pegs);
             col_cmd = getLowestBall(centers, pegs);
-            std::cout << col_cmd << std::endl;
+            if (col_cmd != -1)
+                std::cout << col_cmd << std::endl;
 
             col_cmd = (col_cmd == -1) ? col_cmd = prev_col_cmd : col_cmd;
 
             imshow("Camera Input", frame);
+            imshow("AbsDiff", diff);
             char key;
             key = waitKey(1);
 
@@ -133,8 +136,8 @@ int main(int, char**)
             if (key == 'q')
 	            break;
 
-            // if (col_cmd != prev_col_cmd)
-                // sendMotorToCol(col_cmd);
+            if (col_cmd != prev_col_cmd)
+                sendMotorToCol(col_cmd);
             prev_col_cmd = col_cmd;
         }
         else
@@ -232,7 +235,7 @@ void calibrate_pegs(cv::Mat frame, std::vector<cv::Point2f>& pegs)
 void prepImg(cv::Mat &g_init, cv::Mat &g_frame, cv::Mat &diff)
 {
     cv::absdiff(g_init, g_frame, diff);
-    cv::threshold(diff, diff, 40, 255, 0);
+    cv::threshold(diff, diff, 25, 255, 0); //40
     diff = cleanUpNoise(diff);
 }
 
@@ -320,7 +323,7 @@ void sendMotorToCol(int col)
     else if (col == 9)
         sendCommand("g46\n");
     else if (col == 1)
-        sendCommand("h\n");
+        sendCommand("g7\n");
     else if (col == 10)
         sendCommand("g51\n");
     else
@@ -399,25 +402,46 @@ int catchRedBall(const std::vector<cv::Point2f>& centers, const
 
 int getLowestBall(const std::vector<cv::Point2f>& centers, const std::vector<cv::Point2f>& pegs)
 {
+    static double y_prev{0.0}, x_prev{0.0};
+    double lowest;
   double r_y{centers[0].y}, b_y{centers[2].y}, g_y{centers[1].y};
 
   //Check if the center was actually found
-  if(r_y == 0.0)
-    r_y = 1000.0;
-  if(b_y == 0.0)
-    b_y = 1000.0;
-  if(g_y == 0.0)
-    g_y = 1000.0;
+  if(r_y == 0.0 && b_y ==0.0 && g_y == 0.0)
+    return -1;
+  // if(b_y == 0.0)
+  //   b_y = 1000.0;
+  // if(g_y == 0.0)
+  //   g_y = 1000.0;
 
     int index;
-    if(r_y < b_y && r_y < g_y)
+    if(r_y > b_y && r_y > g_y)
+    {
       index = 0;
-    else if(g_y < r_y && g_y < b_y)
+      lowest = r_y;
+    }
+    else if(g_y > r_y && g_y > b_y)
+    {
       index = 1;
-    else //(b_y < r_y && b_y < g_y)
+      lowest = g_y;
+    }
+    else //(b_y > r_y && b_y > g_y)
+    {
       index = 2;
+      lowest = b_y;
+    }
+
+    std::cout << "Difference\t" << abs(lowest-y_prev) << std::endl;
+    if(abs(lowest-y_prev) > 10 && y_prev < pegs[0].y + 45)
+    {
+        y_prev = lowest;
+        std::cout << "lost frame\t" << y_prev << "\t" << index << std::endl;
+        return -1;
+    }
+    y_prev = lowest;
 
     int col_cmd{getColFromPixel(centers[index].x, pegs)};
+
 
     return col_cmd;
 }
