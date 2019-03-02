@@ -8,12 +8,12 @@
 #include <fcntl.h>
 #include <termios.h>
 
+using namespace cv;
 
 int fd, n, i;
 char buf[128] = "temp text";
 int mouse_X, mouse_Y;
 std::vector<cv::Point> points;
-using namespace cv;
 
 void sendCommand(const char* command);
 int setupSerial();
@@ -131,28 +131,28 @@ int main(int, char**)
         		imshow("Camera Input", frame);
                 char key;
         		key = waitKey(10);
-                if (key == 'q')
+                if (key == '1')
                     sendMotorToCol(1);
-                else if (key == 'w')
+                else if (key == '2')
                     sendMotorToCol(2);
-                else if (key == 'e')
+                else if (key == '3')
                     sendMotorToCol(3);
-                else if (key == 'r')
+                else if (key == '4')
                     sendMotorToCol(4);
-                else if (key == 't')
+                else if (key == '5')
                     sendMotorToCol(5);
-                else if (key == 'y')
+                else if (key == '6')
                     sendMotorToCol(6);
-                else if (key == 'u')
+                else if (key == '7')
                     sendMotorToCol(7);
-                else if (key == 'i')
+                else if (key == '8')
                     sendMotorToCol(8);
-                else if (key == 'o')
+                else if (key == '9')
                     sendMotorToCol(9);
-                else if (key == 'p')
+                else if (key == '0')
                     sendMotorToCol(10);
-		else if (key == 'b')
-		    break;
+		        else if (key == 'q')
+		            break;
 
             // Command structure is very simple
             // "h\n" is to home the motor
