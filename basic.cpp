@@ -17,10 +17,14 @@ std::vector<cv::Point> points;
 
 void sendCommand(const char* command);
 int setupSerial();
-void calibrate_camera(cv::Mat frame, cv::Rect& calibrationRect, std::vector<cv::Point2f>& pegs);
+void calibrate_camera(cv::Mat frame, cv::Rect& calibrationRect);
+void calibrate_pegs(cv::Mat frame, std::vector<cv::Point2f>& pegs);
 void on_mouse(int evt, int x, int y, int flags, void* param);
+void prepImg(cv::Mat &g_init, cv::Mat &g_frame, cv::Mat &diff);
 cv::Mat cleanUpNoise(cv::Mat noisy_img);
-std::vector<cv::Point2f> findCentroids(cv::Mat diff);
+cv::SimpleBlobDetector::Params setupParams();
+void drawCircles(cv::Mat& frame, std::vector<cv::Point2f> &centers, 
+                 std::vector<cv::Point2f> balls);
 void sendMotorToCol(int col);
 int overrideMotorWithKeyPress(char key, int& col_cmd);
 
@@ -35,55 +39,55 @@ int main(int, char**)
     int col_cmd{5};
     int prev_col_cmd{0};
     Mat frameLast, g_init;
-    VideoCapture cap(0); // open the default camera
-    setupSerial();
+//    VideoCapture cap(0); // open the default camera
+    VideoCapture cap("plinko_lights_board1.avi");
+//    setupSerial();
     if(!cap.isOpened())  // check if we succeeded
         return -1;
 
     cap >> frameLast;
     cv::cvtColor(frameLast, g_init, cv::COLOR_BGR2GRAY);
-//    sendCommand("h\n"); // Home the motor and encoder
+    sendCommand("h\n"); // Home the motor and encoder
 
     //Setting up our calibration stuff here
     cv::Rect calibrationRect(cv::Point(-1,-1),cv::Point(-1,-1));
     std::vector<cv::Point2f> pegs;
+    cv::Rect roi;
 
-//    std::cout << "Enter 'c' to calibrate. Hit another key to read in file:\n";
-//    int key = cv::waitKey(0);
-//    if(key == (int)('c'))
-    calibrate_camera(frameLast, calibrationRect, pegs);
-//    else
-//    {
-//      ////// For Reading in the calibration file
-//      cv::FileStorage fs_in("calibration.yaml",cv::FileStorage::READ);
-//      fs_in["CalibrationRectangle"] >> calibrationRect;
-//      fs_in["Pegs"] >> pegs;
-//      fs_in.release();
-//    }
+    std::cout << "Enter 'c' to calibrate. Hit another key to read in file:" << std::endl;
+    cv::imshow("Temp", frameLast);
+    int key = cv::waitKey(0); // For some reason it is not waiting here
+    std::cout << key << std::endl;
+    if(key == (int)('c'))
+        calibrate_camera(frameLast, calibrationRect);
+    else
+    {
+        //// For Reading in the calibration file
+        cv::FileStorage fs_in("calibration.yaml",cv::FileStorage::READ);
+        fs_in["CalibrationRectangle"] >> calibrationRect;
+        fs_in["Pegs"] >> pegs;
+        fs_in.release();
+    }
 
-    ////// For savingin off the calibration file
-//    cv::FileStorage fs_out("calibration.yaml",cv::FileStorage::WRITE);
-//    fs_out << "CalibrationRectangle" << calibrationRect;
-//    fs_out << "Pegs" << pegs;
-//    fs_out.release();
-
-//    cv::Rect roi = cv::Rect(calibrationRect.tl().x,
-//    calibrationRect.tl().y,
-//    calibrationRect.br().x-calibrationRect.tl().x,
-//    calibrationRect.br().y-calibrationRect.tl().y);
+    roi = cv::Rect(calibrationRect.tl().x,
+    calibrationRect.tl().y,
+    calibrationRect.br().x-calibrationRect.tl().x,
+    calibrationRect.br().y-calibrationRect.tl().y);
 
     // Crop the initial image
-//    g_init = frameLast(roi);
+    frameLast = frameLast(roi);
+    g_init = g_init(roi);
+    if(key == (int)('c'))
+        calibrate_pegs(frameLast, pegs);
+
+    //// For saving off the calibration file
+    cv::FileStorage fs_out("calibration.yaml",cv::FileStorage::WRITE);
+    fs_out << "CalibrationRectangle" << calibrationRect;
+    fs_out << "Pegs" << pegs;
+    fs_out.release();
 
     //Set up blob detector
-    cv::SimpleBlobDetector::Params params;
-    params.minThreshold = 100;
-    params.maxThreshold = 255; //maybe try by circularity also
-    params.filterByColor = true;
-    params.blobColor = 255;
-    params.filterByArea = true;
-    params.minArea = 153;
-    params.maxArea = 1256;
+    cv::SimpleBlobDetector::Params params = setupParams();
     cv::Ptr<cv::SimpleBlobDetector> detect = cv::SimpleBlobDetector::create(params);
 
     for(;;)
@@ -92,62 +96,44 @@ int main(int, char**)
         Mat frame, g_frame, diff;
 
         cap >> frame; // get a new frame from camera
-        cv::cvtColor(frame, g_frame, cv::COLOR_BGR2GRAY);
-//        frame = frame(roi);
-//        g_frame = g_frame(roi);
 
-	    if(!frame.empty())
+        if(!frame.empty())
         {
             //ADD YOUR CODE HERE
-            cv::absdiff(g_init, g_frame, diff);
-            cv::threshold(diff, diff, 40, 255, 0);
-            diff = cleanUpNoise(diff);
+            cv::cvtColor(frame, g_frame, cv::COLOR_BGR2GRAY);
+            frame = frame(roi);
+            g_frame = g_frame(roi);
+
+            prepImg(g_init, g_frame, diff);
+
             std::vector<cv::KeyPoint> keypts;
             detect->detect(diff, keypts);
 
-            std::vector<cv::Point2f> centers;
-            std::vector<cv::Point2f> balls(3); //red is first, blue is second, green is third
-            cv::KeyPoint::convert(keypts, centers);
+            std::vector<cv::Point2f> balls;
+            cv::KeyPoint::convert(keypts, balls);
 
-            for(cv::Point2f circle : centers)
-            {
-              cv::Vec3b color = frame.at<cv::Vec3b>(circle.y, circle.x);
-              int b(color.val[0]), g(color.val[1]), r(color.val[2]);
-
-              // if((b < 255 && b > 50) && (g < 255 && g > 50) && (r < 250 && r>200)) //would help get rid of some blobs
-              if(r > b && r > g)
-              {
-                cv::circle(frame, circle, 5, cv::Scalar(255, 0, 0), -1);
-                balls[0] = circle;
-              }
-              else if(b > r && b > g)
-              {
-                cv::circle(frame, circle, 5, cv::Scalar(0, 255, 0), -1);
-                balls[2] = circle;
-              }
-              else if(g > r && g > b)
-              {
-                cv::circle(frame, circle, 5, cv::Scalar(0, 0, 255), -1);
-                balls[1] = circle;
-              }
-            }
+            //Draw circle on the balls
+            std::vector<cv::Point2f> centers(3); //red is first, blue is second, green is third
+            drawCircles(frame, centers, balls);
 
             // go for red ball only (highest point ball)
             if (balls.size() == 3)
                 col_cmd = catchRedBall(balls, pegs);
 
-        	imshow("Camera Input", frame);
+            imshow("Camera Input", frame);
             char key;
             key = waitKey(1);
 
             overrideMotorWithKeyPress(key, col_cmd);
             if (key == 'q')
-		        break;
+	            break;
 
             if (col_cmd != prev_col_cmd)
                 sendMotorToCol(col_cmd);
             prev_col_cmd = col_cmd;
         }
+        else
+            break;
     }
     return 0; // end of main
 }
@@ -195,73 +181,115 @@ int setupSerial()
     return 0;
 }
 
-void calibrate_camera(cv::Mat frame, cv::Rect& calibrationRect, std::vector<cv::Point2f>& pegs)
+void calibrate_camera(cv::Mat frame, cv::Rect& calibrationRect)
 {
-  cv::namedWindow("ImageDisplay", 1);
-  cv::setMouseCallback("ImageDisplay", on_mouse, (void*)&points);
+    cv::namedWindow("ImageDisplay", 1);
+    cv::setMouseCallback("ImageDisplay", on_mouse, (void*)&points);
 
-  std::cout << "Please click on Top Left Corner. Then press space to Continue." << "\n";
-  cv::imshow("ImageDisplay", frame);
-  cv::waitKey(0);
-  cv::Point tl(mouse_X, mouse_Y);
-  std::cout << "Point: " << mouse_X << " " << mouse_Y << "\n";
-
-  std::cout << "Please click on Bottom Right Corner. Then press space to Continue." << "\n";
-  cv::imshow("ImageDisplay", frame);
-  cv::waitKey(0);
-  cv::Point br(mouse_X, mouse_Y);
-  std::cout << "Point: " << mouse_X << " " << mouse_Y << "\n";
-
-  calibrationRect = cv::Rect(tl,br);
-
-  int numOfPegs(11);  //Note that we need to do this after the iamge is cropped
-  for(int i=0;i<numOfPegs;i++)
-  {
-    std::cout << "Please click on peg " << std::to_string(i+1) << ". Then press space to Continue." << "\n";
+    std::cout << "Please click on Top Left Corner. Then press space to Continue." << "\n";
+    cv::imshow("ImageDisplay", frame);
     cv::waitKey(0);
-    pegs.push_back(cv::Point2f(mouse_X, mouse_Y));
+    cv::Point tl(mouse_X, mouse_Y);
     std::cout << "Point: " << mouse_X << " " << mouse_Y << "\n";
-  }
 
-  cv::destroyWindow("ImageDisplay");
+    std::cout << "Please click on Bottom Right Corner. Then press space to Continue." << "\n";
+    cv::imshow("ImageDisplay", frame);
+    cv::waitKey(0);
+    cv::Point br(mouse_X, mouse_Y);
+    std::cout << "Point: " << mouse_X << " " << mouse_Y << "\n";
+
+    calibrationRect = cv::Rect(tl,br);
+
+    cv::destroyWindow("ImageDisplay");
+}
+
+void calibrate_pegs(cv::Mat frame, std::vector<cv::Point2f>& pegs)
+{
+    cv::namedWindow("ImageDisplay", 1);
+    cv::setMouseCallback("ImageDisplay", on_mouse, (void*)&points);
+
+    cv::imshow("ImageDisplay", frame);
+    cv::waitKey(30);
+
+    int numOfPegs(11); //Note that we need to do this after the iamge is cropped
+    for(int i=0;i<numOfPegs;i++)
+    {
+        std::cout << "Please click on peg " << std::to_string(i+1) << 
+                     ". Then press space to Continue." << "\n";
+        cv::waitKey(0);
+        pegs.push_back(cv::Point2f(mouse_X, mouse_Y));
+        std::cout << "Point: " << mouse_X << " " << mouse_Y << "\n";
+    }
+
+    cv::destroyWindow("ImageDisplay");
+}
+
+void prepImg(cv::Mat &g_init, cv::Mat &g_frame, cv::Mat &diff)
+{
+    cv::absdiff(g_init, g_frame, diff);
+    cv::threshold(diff, diff, 40, 255, 0);
+    diff = cleanUpNoise(diff);
 }
 
 void on_mouse(int evt, int x, int y, int flags, void* param)
 {
-   if(evt == cv::EVENT_LBUTTONDOWN) { //CV_EVENT_LBUTTONDOWN
-       mouse_X = x;
-       mouse_Y = y;
-   }
+    if(evt == cv::EVENT_LBUTTONDOWN) 
+    { //CV_EVENT_LBUTTONDOWN
+        mouse_X = x;
+        mouse_Y = y;
+    }
 }
 
 cv::Mat cleanUpNoise(cv::Mat noisy_img)
 {
-  cv::Mat img;
-  cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5)); //Maybe make this 3, 3
-  cv::erode(noisy_img, img, element);
-  cv::dilate(img, img, element);
+    cv::Mat img;
+    
+    //Maybe make this 3, 3
+    cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5));
+    cv::erode(noisy_img, img, element);
+    cv::dilate(img, img, element);
 
-  return img;
+    return img;
 }
 
-std::vector<cv::Point2f> findCentroids(cv::Mat diff)
+cv::SimpleBlobDetector::Params setupParams()
 {
-  //For some reason this finds the centroid twice
-  cv::Mat canny_out;
-  cv::Canny(diff, canny_out, 100, 200, 3); //May need to change the middle two values
-  std::vector<std::vector<cv::Point>> contours;
-  cv::findContours(canny_out, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+    cv::SimpleBlobDetector::Params params;
+    params.minThreshold = 100;
+    params.maxThreshold = 255; //maybe try by circularity also
+    params.filterByColor = true;
+    params.blobColor = 255;
+    params.filterByArea = true;
+    params.minArea = 153;
+    params.maxArea = 1256;
 
-  std::vector<cv::Moments> mu(contours.size());
-  std::vector<cv::Point2f> mc(contours.size());
-  for(int i(0); i< contours.size(); i++)
-  {
-    mu[i] = cv::moments(contours[i]);
-    mc[i] = cv::Point2f(static_cast<float>(mu[i].m10/(mu[i].m00+1e-5)),
-                    static_cast<float>(mu[i].m01/(mu[i].m00+1e-5)));
-  }
+    return params;
+}
 
-  return mc;
+void drawCircles(cv::Mat& frame, std::vector<cv::Point2f> &centers, std::vector<cv::Point2f> balls)
+{
+    for(cv::Point2f circle : balls)
+    {
+        cv::Vec3b color = frame.at<cv::Vec3b>(circle.y, circle.x);
+        int b(color.val[0]), g(color.val[1]), r(color.val[2]);
+
+    // if((b < 255 && b > 50) && (g < 255 && g > 50) && (r < 250 && r>200)) //would help get rid of some blobs
+        if(r > b && r > g)
+        {
+            cv::circle(frame, circle, 20, cv::Scalar(0, 0, 255), 1, 8);
+            centers[0] = circle;
+        }
+        else if(b > r && b > g)
+        {
+            cv::circle(frame, circle, 20, cv::Scalar(255, 0, 0), 1, 8);
+            centers[2] = circle;
+        }
+        else if(g > r && g > b)
+        {
+            cv::circle(frame, circle, 20, cv::Scalar(0, 255, 0), 1, 8);
+            centers[1] = circle;
+        }
+    }
 }
 
 void sendMotorToCol(int col)
