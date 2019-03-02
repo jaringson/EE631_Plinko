@@ -43,11 +43,11 @@ int main(int, char**)
     //Setting up our calibration stuff here
     cv::Rect calibrationRect(cv::Point(-1,-1),cv::Point(-1,-1));
     std::vector<cv::Point2f> pegs;
+    cv::Rect roi;
 
    std::cout << "Enter 'c' to calibrate. Hit another key to read in file:" << std::endl;
-   int key;
    cv::imshow("Temp", frameLast);
-   key = cv::waitKey(0); // For some reason it is not waiting here
+   int key = cv::waitKey(0); // For some reason it is not waiting here
    std::cout << key << std::endl;
    if(key == (int)('c'))
       calibrate_camera(frameLast, calibrationRect);
@@ -60,7 +60,7 @@ int main(int, char**)
      fs_in.release();
    }
 
-   cv::Rect roi = cv::Rect(calibrationRect.tl().x,
+   roi = cv::Rect(calibrationRect.tl().x,
    calibrationRect.tl().y,
    calibrationRect.br().x-calibrationRect.tl().x,
    calibrationRect.br().y-calibrationRect.tl().y);
@@ -71,7 +71,7 @@ int main(int, char**)
    if(key == (int)('c'))
      calibrate_pegs(frameLast, pegs);
 
-    //// For savingin off the calibration file
+    //// For saving off the calibration file
    cv::FileStorage fs_out("calibration.yaml",cv::FileStorage::WRITE);
    fs_out << "CalibrationRectangle" << calibrationRect;
    fs_out << "Pegs" << pegs;
