@@ -30,7 +30,7 @@ int overrideMotorWithKeyPress(char key, int& col_cmd);
 
 // catching options
 int getColFromPixel(int x_pixel,const std::vector<cv::Point2f>& pegs);
-int catchRedBall(const std::vector<cv::Point2f>& balls, const
+int catchRedBall(const std::vector<cv::Point2f>& centers, const
                   std::vector<cv::Point2f>& pegs);
 int getLowestBall(const std::vector<cv::Point2f>& centers,
                   const std::vector<cv::Point2f>& pegs);
@@ -119,14 +119,11 @@ int main(int, char**)
             std::vector<cv::Point2f> centers(3); //red is first, blue is second, green is third
             drawCircles(frame, centers, balls);
 
-            // go for red ball only (highest point ball)
-            // if (balls.size() == 3)
-            // {
-            //     col_cmd = catchRedBall(centers, pegs);
-            //     std::cout << col_cmd << std::endl;
-            // }
+//            col_cmd = catchRedBall(centers, pegs);
             col_cmd = getLowestBall(centers, pegs);
             std::cout << col_cmd << std::endl;
+
+            col_cmd = (col_cmd == -1) ? col_cmd = prev_col_cmd : col_cmd;
 
             imshow("Camera Input", frame);
             char key;
@@ -388,12 +385,16 @@ int getColFromPixel(int x_pixel,const std::vector<cv::Point2f>& pegs)
     return col;
 }
 
-int catchRedBall(const std::vector<cv::Point2f>& balls, const
+int catchRedBall(const std::vector<cv::Point2f>& centers, const
                   std::vector<cv::Point2f>& pegs)
 {
-   int col_cmd{getColFromPixel(balls[0].x, pegs)};
+    int col_cmd;
+    if (centers[0].x)
+        col_cmd = getColFromPixel(centers[0].x, pegs);
+    else
+        col_cmd = -1;
 
-   return col_cmd;
+    return col_cmd;
 }
 
 int getLowestBall(const std::vector<cv::Point2f>& centers, const std::vector<cv::Point2f>& pegs)
