@@ -42,15 +42,15 @@ int main(int, char**)
     int col_cmd{5};
     int prev_col_cmd{0};
     Mat frameLast, g_init;
-    VideoCapture cap(0); // open the default camera
-//    VideoCapture cap("plinko_lights_board3.avi");
-    setupSerial();
+    // VideoCapture cap(0); // open the default camera
+   VideoCapture cap("plinko_vids/test3.avi");
+    // setupSerial();
     if(!cap.isOpened())  // check if we succeeded
         return -1;
 
     cap >> frameLast;
     cv::cvtColor(frameLast, g_init, cv::COLOR_BGR2GRAY);
-    sendCommand("h\n"); // Home the motor and encoder
+    // sendCommand("h\n"); // Home the motor and encoder
 
     //Setting up our calibration stuff here
     cv::Rect calibrationRect(cv::Point(-1,-1),cv::Point(-1,-1));
@@ -129,6 +129,7 @@ int main(int, char**)
 
             imshow("Camera Input", frame);
             imshow("AbsDiff", diff);
+            cv::waitKey(0);
             char key;
             key = waitKey(1);
 
@@ -136,8 +137,8 @@ int main(int, char**)
             if (key == 'q')
 	            break;
 
-            if (col_cmd != prev_col_cmd)
-                sendMotorToCol(col_cmd);
+            // if (col_cmd != prev_col_cmd)
+            //     sendMotorToCol(col_cmd);
             prev_col_cmd = col_cmd;
         }
         else
@@ -270,6 +271,9 @@ cv::SimpleBlobDetector::Params setupParams()
     params.filterByArea = true;
     params.minArea = 153;
     params.maxArea = 1256;
+    params.filterByCircularity = false;
+    params.filterByConvexity = false;
+    params.filterByInertia = false;
 
     return params;
 }
