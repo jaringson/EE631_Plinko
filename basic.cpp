@@ -1,6 +1,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/features2d.hpp>
 #include <vector>
+#include <iostream>
 
 #include <errno.h>
 #include <unistd.h>
@@ -32,38 +33,39 @@ int main(int, char**)
         return -1;
 
     cap >> frameLast;
-    sendCommand("h\n"); // Home the motor and encoder
+    cv::cvtColor(frameLast, g_init, cv::COLOR_BGR2GRAY);
+//    sendCommand("h\n"); // Home the motor and encoder
 
     //Setting up our calibration stuff here
     cv::Rect calibrationRect(cv::Point(-1,-1),cv::Point(-1,-1));
     std::vector<cv::Point2f> pegs;
 
-    std::cout << "Enter 'c' to calibrate. Hit another key to read in file:\n";
-    int key = cv::waitKey(0);
-    if(key == (int)('c'))
+//    std::cout << "Enter 'c' to calibrate. Hit another key to read in file:\n";
+//    int key = cv::waitKey(0);
+//    if(key == (int)('c'))
       calibrate_camera(frameLast, calibrationRect, pegs);
-    else
-    {
-      ////// For Reading in the calibration file
-      cv::FileStorage fs_in("calibration.yaml",cv::FileStorage::READ);
-      fs_in["CalibrationRectangle"] >> calibrationRect;
-      fs_in["Pegs"] >> pegs;
-      fs_in.release();
-    }
+//    else
+//    {
+//      ////// For Reading in the calibration file
+//      cv::FileStorage fs_in("calibration.yaml",cv::FileStorage::READ);
+//      fs_in["CalibrationRectangle"] >> calibrationRect;
+//      fs_in["Pegs"] >> pegs;
+//      fs_in.release();
+//    }
 
     ////// For savingin off the calibration file
-    cv::FileStorage fs_out("calibration.yaml",cv::FileStorage::WRITE);
-    fs_out << "CalibrationRectangle" << calibrationRect;
-    fs_out << "Pegs" << pegs;
-    fs_out.release();
+//    cv::FileStorage fs_out("calibration.yaml",cv::FileStorage::WRITE);
+//    fs_out << "CalibrationRectangle" << calibrationRect;
+//    fs_out << "Pegs" << pegs;
+//    fs_out.release();
 
-    cv::Rect roi = cv::Rect(calibrationRect.tl().x,
-      calibrationRect.tl().y,
-      calibrationRect.br().x-calibrationRect.tl().x,
-      calibrationRect.br().y-calibrationRect.tl().y);
+//    cv::Rect roi = cv::Rect(calibrationRect.tl().x,
+//      calibrationRect.tl().y,
+//      calibrationRect.br().x-calibrationRect.tl().x,
+//      calibrationRect.br().y-calibrationRect.tl().y);
 
     // Crop the initial image
-    g_init = frameLast(roi);
+//    g_init = frameLast(roi);
 
     //Set up blob detector
     cv::SimpleBlobDetector::Params params;
@@ -83,8 +85,8 @@ int main(int, char**)
 
         cap >> frame; // get a new frame from camera
         cv::cvtColor(frame, g_frame, cv::COLOR_BGR2GRAY);
-        frame = frame(roi);
-        g_frame = g_frame(roi);
+//        frame = frame(roi);
+//        g_frame = g_frame(roi);
 
 	      if(!frame.empty())
         {
@@ -127,20 +129,43 @@ int main(int, char**)
             //Column:cm : 1:6cm, 2:11cm, 3:16cm, 4:21cm, 5:26cm, 6:31cm, 7:36cm, 8:41cm, 9:46/47cm, 10:51/52cm
 
         		imshow("Camera Input", frame);
-        		if(waitKey(10) >= 0) break;
+                char key;
+        		key = waitKey(10);
+                if (key == 'q')
+                    sendMotorToCol(1);
+                else if (key == 'w')
+                    sendMotorToCol(2);
+                else if (key == 'e')
+                    sendMotorToCol(3);
+                else if (key == 'r')
+                    sendMotorToCol(4);
+                else if (key == 't')
+                    sendMotorToCol(5);
+                else if (key == 'y')
+                    sendMotorToCol(6);
+                else if (key == 'u')
+                    sendMotorToCol(7);
+                else if (key == 'i')
+                    sendMotorToCol(8);
+                else if (key == 'o')
+                    sendMotorToCol(9);
+                else if (key == 'p')
+                    sendMotorToCol(10);
+		else if (key == 'b')
+		    break;
 
             // Command structure is very simple
             // "h\n" is to home the motor
             // "g<integer range 7 to 53>\n" sends the motor to that position in cm
             // e.g. "g35\n" sends the motor to 35cm from left wall
-            if(frameCounter%200==0)
-            {
-                sendCommand("g10\n");
-            }
-            else if(frameCounter%100==0)
-            {
-                sendCommand("g50\n");
-            }
+//            if(frameCounter%200==0)
+//            {
+//                sendCommand("g10\n");
+//            }
+//            else if(frameCounter%100==0)
+//            {
+//                sendCommand("g50\n");
+//            }
         }
     }
     // the camera will be deinitialized automatically in VideoCapture destructor
@@ -209,14 +234,12 @@ void calibrate_camera(cv::Mat frame, cv::Rect& calibrationRect, std::vector<cv::
 
   calibrationRect = cv::Rect(tl,br);
 
-  // std::vector<cv::Point> pegs;
-  int numOfPegs(11);
+  int numOfPegs(11);  //Note that we need to do this after the iamge is cropped
   for(int i=0;i<numOfPegs;i++)
   {
     std::cout << "Please click on peg " << std::to_string(i+1) << ". Then press space to Continue." << "\n";
-    cv::imshow("ImageDisplay", frame);
     cv::waitKey(0);
-    pegs[i] = cv::Point(mouse_X, mouse_Y);
+    pegs.push_back(cv::Point2f(mouse_X, mouse_Y));
     std::cout << "Point: " << mouse_X << " " << mouse_Y << "\n";
   }
 
@@ -264,26 +287,26 @@ std::vector<cv::Point2f> findCentroids(cv::Mat diff)
 void sendMotorToCol(int col)
 {
     if (col == 5)
-        sendCommand("g26\n");
+        sendCommand("g25\n");
     else if (col == 6)
-        sendCommand("g31\n");
+        sendCommand("g30\n");
     else if (col == 4)
-        sendCommand("g21\n");
+        sendCommand("g20\n");
     else if (col == 7)
         sendCommand("g36\n");
     else if (col == 3)
-        sendCommand("g16\n");
+        sendCommand("g15\n");
     else if (col == 8)
         sendCommand("g41\n");
     else if (col == 2)
-        sendCommand("g11\n");
+        sendCommand("g10\n");
     else if (col == 9)
         sendCommand("g46\n");
     else if (col == 1)
-        sendCommand("g6\n");
+        sendCommand("h\n");
     else if (col == 10)
         sendCommand("g51\n");
     else
-        sendCommand("g26\n");
+        sendCommand("g24\n");
 }
 
