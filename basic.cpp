@@ -46,7 +46,7 @@ int main(int, char**)
     int prev_col_cmd{0};
     Mat frameLast, g_init, frame_init;
     // VideoCapture cap(0); // open the default camera
-   VideoCapture cap("plinko_vids/test4.avi");
+   VideoCapture cap("plinko_vids/test2.avi");
     // setupSerial();
     if(!cap.isOpened())  // check if we succeeded
         return -1;
@@ -258,22 +258,12 @@ void prepImg(cv::Mat &g_init, cv::Mat &g_frame, cv::Mat frame_init, cv::Mat fram
     // cv::waitKey(0);
 
     cv::absdiff(frame_init, frame, diff);
-    cv::imshow("color diff", diff);
-    // cv::threshold(diff, diff, 25, 255, 0); //40
-    // cv::cvtColor(diff, diff, cv::COLOR_GRAY2BGR);
+    // cv::imshow("color diff", diff);
 
     cv::bitwise_and(frame, diff, frame);
-    // cv::imshow("diff", diff);
-    cv::inRange(frame, cv::Scalar(0,0,90), cv::Scalar(255,255,255), red_diff);
-    cv::inRange(frame, cv::Scalar(0,150,0), cv::Scalar(255,255,255), green_diff);
-    cv::inRange(frame, cv::Scalar(170,0,0), cv::Scalar(255,120,255), blue_diff);
-
-    // std::cout << red_diff.channels() << std::endl;
-    //
-    //5
-    // cv::cvtColor(red_diff, red_diff, cv::COLOR_BGR2GRAY);
-    // cv::cvtColor(green_diff, green_diff, cv::COLOR_BGR2GRAY);
-    // cv::cvtColor(blue_diff, blue_diff, cv::COLOR_BGR2GRAY);
+    cv::inRange(frame, cv::Scalar(0,0,90), cv::Scalar(200,180,255), red_diff);
+    cv::inRange(frame, cv::Scalar(0,150,0), cv::Scalar(180,255,200), green_diff);
+    cv::inRange(frame, cv::Scalar(170,0,0), cv::Scalar(255,120,200), blue_diff);
 
     red_diff = cleanUpNoise(red_diff);
     green_diff = cleanUpNoise(green_diff);
@@ -294,9 +284,10 @@ cv::Mat cleanUpNoise(cv::Mat noisy_img)
     cv::Mat img;
 
     //Maybe make this 3, 3
-    cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+    cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(4, 4));
+    cv::Mat dilate_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(10, 10));
     cv::erode(noisy_img, img, element);
-    cv::dilate(img, img, element);
+    cv::dilate(img, img, dilate_element);
 
     return img;
 }
@@ -323,40 +314,54 @@ void drawCircles(cv::Mat& frame, std::vector<cv::Point2f> &centers,
    std::vector<cv::Point2f> blue_balls,
    std::vector<cv::Point2f> green_balls)
 {
+    int max_red{0};
+    cv::Point2f red_winner;
     for(cv::Point2f circle : red_balls)
     {
-        // cv::Vec3b color = frame.at<cv::Vec3b>(circle.y, circle.x);
-        // int b(color.val[0]), g(color.val[1]), r(color.val[2]);
+        cv::Vec3b color = frame.at<cv::Vec3b>(circle.y, circle.x);
+        int b(color.val[0]), g(color.val[1]), r(color.val[2]);
+        if(r>max_red)
+        {
+            max_red = r;
+            red_winner = circle;
+        }
 
-    // if((b < 255 && b > 50) && (g < 255 && g > 50) && (r < 250 && r>200)) //would help get rid of some blobs
-        // if(r > b && r > g)
-        // {
-        // std::cout << "red circle" << std::endl;
-            cv::circle(frame, circle, 20, cv::Scalar(0, 0, 255), 1, 8);
-            centers[0] = circle;
-        // }
-        // else if(b > r && b > g)
-        // {
-            // cv::circle(frame, circle, 20, cv::Scalar(255, 0, 0), 1, 8);
-            // centers[2] = circle;
-        // }
-        // else if(g > r && g > b)
-        // {
-            // cv::circle(frame, circle, 20, cv::Scalar(0, 255, 0), 1, 8);
-            // centers[1] = circle;
     }
+
+    int max_blue{0};
+    cv::Point2f blue_winner;
     for(cv::Point2f circle : blue_balls)
     {
     // std::cout << "blue circle" << std::endl;
-      cv::circle(frame, circle, 20, cv::Scalar(255,0,0), 1, 8);
-      centers[1] = circle;
+        cv::Vec3b color = frame.at<cv::Vec3b>(circle.y, circle.x);
+        int b(color.val[0]), g(color.val[1]), r(color.val[2]);
+        if(b>max_blue)
+        {
+            max_blue = b;
+            blue_winner = circle;
+        }
     }
+
+    int max_green{0};
+    cv::Point2f green_winner;
     for(cv::Point2f circle : green_balls)
     {
     // std::cout << "green circle" << std::endl;
-      cv::circle(frame, circle, 20, cv::Scalar(0,255,0), 1, 8);
-      centers[2] = circle;
+        cv::Vec3b color = frame.at<cv::Vec3b>(circle.y, circle.x);
+        int b(color.val[0]), g(color.val[1]), r(color.val[2]);
+        if(g>max_green)
+        {
+            max_green = g;
+            green_winner = circle;
+        }
     }
+
+    cv::circle(frame, red_winner, 20, cv::Scalar(0, 0, 255), 1, 8);
+    cv::circle(frame, blue_winner, 20, cv::Scalar(255,0,0), 1, 8);
+    cv::circle(frame, green_winner, 20, cv::Scalar(0,255,0), 1, 8);
+    centers[0] = red_winner;
+    centers[1] = blue_winner;
+    centers[2] = green_winner;
 
 }
 
