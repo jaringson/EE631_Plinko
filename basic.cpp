@@ -21,11 +21,14 @@ int setupSerial();
 void calibrate_camera(cv::Mat frame, cv::Rect& calibrationRect);
 void calibrate_pegs(cv::Mat frame, std::vector<cv::Point2f>& pegs);
 void on_mouse(int evt, int x, int y, int flags, void* param);
-void prepImg(cv::Mat &g_init, cv::Mat &g_frame, cv::Mat &diff);
+void prepImg(cv::Mat &g_init, cv::Mat &g_frame, cv::Mat frame_init, cv::Mat frame,
+  cv::Mat &red_diff, cv::Mat &green_diff, cv::Mat &blue_diff);
 cv::Mat cleanUpNoise(cv::Mat noisy_img);
 cv::SimpleBlobDetector::Params setupParams();
 void drawCircles(cv::Mat& frame, std::vector<cv::Point2f> &centers,
-                 std::vector<cv::Point2f> balls);
+   std::vector<cv::Point2f> red_balls,
+   std::vector<cv::Point2f> blue_balls,
+   std::vector<cv::Point2f> green_balls);
 void sendMotorToCol(int col);
 int overrideMotorWithKeyPress(char key, int& col_cmd);
 
@@ -41,7 +44,7 @@ int main(int, char**)
     int frameCounter = 0;
     int col_cmd{5};
     int prev_col_cmd{0};
-    Mat frameLast, g_init;
+    Mat frameLast, g_init, frame_init;
     // VideoCapture cap(0); // open the default camera
    VideoCapture cap("plinko_vids/test4.avi");
     // setupSerial();
@@ -79,6 +82,7 @@ int main(int, char**)
 
     // Crop the initial image
     frameLast = frameLast(roi);
+    // frame_init = frameLast.clone();
     g_init = g_init(roi);
     if(key == (int)('c'))
         calibrate_pegs(frameLast, pegs);
@@ -91,12 +95,12 @@ int main(int, char**)
 
     //Set up blob detector
     cv::SimpleBlobDetector::Params params = setupParams();
-    cv::Ptr<cv::SimpleBlobDetector> detect = cv::SimpleBlobDetector::create(params);
+    cv::Ptr<cv::SimpleBlobDetector> detector = cv::SimpleBlobDetector::create(params);
 
     for(;;)
     {
         frameCounter++;
-        Mat frame, g_frame, diff;
+        Mat frame, g_frame, red_diff, green_diff, blue_diff;
 
         cap >> frame; // get a new frame from camera
 
@@ -107,18 +111,27 @@ int main(int, char**)
             frame = frame(roi);
             g_frame = g_frame(roi);
 
-            prepImg(g_init, g_frame, diff);
+            prepImg(g_init, g_frame, frameLast.clone(), frame.clone(),
+                    red_diff, green_diff, blue_diff);
 
-            std::vector<cv::KeyPoint> keypts;
-            detect->detect(diff, keypts);
+            std::vector<cv::KeyPoint> red_keypts;
+            std::vector<cv::KeyPoint> blue_keypts;
+            std::vector<cv::KeyPoint> green_keypts;
+            detector->detect(red_diff, red_keypts);
+            detector->detect(blue_diff, blue_keypts);
+            detector->detect(green_diff, green_keypts);
 
-            std::vector<cv::Point2f> balls;
-            cv::KeyPoint::convert(keypts, balls);
+            std::vector<cv::Point2f> red_balls;
+            cv::KeyPoint::convert(red_keypts, red_balls);
+            std::vector<cv::Point2f> blue_balls;
+            cv::KeyPoint::convert(blue_keypts, blue_balls);
+            std::vector<cv::Point2f> green_balls;
+            cv::KeyPoint::convert(green_keypts, green_balls);
 
             //Draw circle on the balls
             //If there is no center detected the Point will show 0, 0
             std::vector<cv::Point2f> centers(3); //red is first, blue is second, green is third
-            drawCircles(frame, centers, balls);
+            drawCircles(frame, centers, red_balls, blue_balls, green_balls);
 
             // col_cmd = catchRedBall(centers, pegs);
             col_cmd = getLowestBall(centers, pegs);
@@ -128,7 +141,9 @@ int main(int, char**)
             col_cmd = (col_cmd == -1) ? prev_col_cmd : col_cmd;
 
             imshow("Camera Input", frame);
-            imshow("AbsDiff", diff);
+            imshow("Red AbsDiff", red_diff);
+            imshow("Green AbsDiff", green_diff);
+            imshow("Blue AbsDiff", blue_diff);
             cv::waitKey(0);
             char key;
             key = waitKey(1);
@@ -233,11 +248,36 @@ void calibrate_pegs(cv::Mat frame, std::vector<cv::Point2f>& pegs)
     cv::destroyWindow("ImageDisplay");
 }
 
-void prepImg(cv::Mat &g_init, cv::Mat &g_frame, cv::Mat &diff)
+void prepImg(cv::Mat &g_init, cv::Mat &g_frame, cv::Mat frame_init, cv::Mat frame,
+  cv::Mat &red_diff, cv::Mat &green_diff, cv::Mat &blue_diff)
 {
-    cv::absdiff(g_init, g_frame, diff);
-    cv::threshold(diff, diff, 25, 255, 0); //40
-    diff = cleanUpNoise(diff);
+    cv::Mat diff;
+    // std::cout << "here" << std::endl;
+    // cv::imshow("bitwise frame", frame);
+    // cv::imshow("bitwise frame init", frame_init);
+    // cv::waitKey(0);
+
+    cv::absdiff(frame_init, frame, diff);
+    cv::imshow("color diff", diff);
+    // cv::threshold(diff, diff, 25, 255, 0); //40
+    // cv::cvtColor(diff, diff, cv::COLOR_GRAY2BGR);
+
+    cv::bitwise_and(frame, diff, frame);
+    // cv::imshow("diff", diff);
+    cv::inRange(frame, cv::Scalar(0,0,90), cv::Scalar(255,255,255), red_diff);
+    cv::inRange(frame, cv::Scalar(0,150,0), cv::Scalar(255,255,255), green_diff);
+    cv::inRange(frame, cv::Scalar(170,0,0), cv::Scalar(255,120,255), blue_diff);
+
+    // std::cout << red_diff.channels() << std::endl;
+    //
+    //5
+    // cv::cvtColor(red_diff, red_diff, cv::COLOR_BGR2GRAY);
+    // cv::cvtColor(green_diff, green_diff, cv::COLOR_BGR2GRAY);
+    // cv::cvtColor(blue_diff, blue_diff, cv::COLOR_BGR2GRAY);
+
+    red_diff = cleanUpNoise(red_diff);
+    green_diff = cleanUpNoise(green_diff);
+    blue_diff = cleanUpNoise(blue_diff);
 }
 
 void on_mouse(int evt, int x, int y, int flags, void* param)
@@ -254,7 +294,7 @@ cv::Mat cleanUpNoise(cv::Mat noisy_img)
     cv::Mat img;
 
     //Maybe make this 3, 3
-    cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5));
+    cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
     cv::erode(noisy_img, img, element);
     cv::dilate(img, img, element);
 
@@ -269,7 +309,7 @@ cv::SimpleBlobDetector::Params setupParams()
     params.filterByColor = true;
     params.blobColor = 255;
     params.filterByArea = true;
-    params.minArea = 153;
+    params.minArea = 75;
     params.maxArea = 1256;
     params.filterByCircularity = false;
     params.filterByConvexity = false;
@@ -278,30 +318,46 @@ cv::SimpleBlobDetector::Params setupParams()
     return params;
 }
 
-void drawCircles(cv::Mat& frame, std::vector<cv::Point2f> &centers, std::vector<cv::Point2f> balls)
+void drawCircles(cv::Mat& frame, std::vector<cv::Point2f> &centers,
+   std::vector<cv::Point2f> red_balls,
+   std::vector<cv::Point2f> blue_balls,
+   std::vector<cv::Point2f> green_balls)
 {
-    for(cv::Point2f circle : balls)
+    for(cv::Point2f circle : red_balls)
     {
-        cv::Vec3b color = frame.at<cv::Vec3b>(circle.y, circle.x);
-        int b(color.val[0]), g(color.val[1]), r(color.val[2]);
+        // cv::Vec3b color = frame.at<cv::Vec3b>(circle.y, circle.x);
+        // int b(color.val[0]), g(color.val[1]), r(color.val[2]);
 
     // if((b < 255 && b > 50) && (g < 255 && g > 50) && (r < 250 && r>200)) //would help get rid of some blobs
-        if(r > b && r > g)
-        {
+        // if(r > b && r > g)
+        // {
+        // std::cout << "red circle" << std::endl;
             cv::circle(frame, circle, 20, cv::Scalar(0, 0, 255), 1, 8);
             centers[0] = circle;
-        }
-        else if(b > r && b > g)
-        {
-            cv::circle(frame, circle, 20, cv::Scalar(255, 0, 0), 1, 8);
-            centers[2] = circle;
-        }
-        else if(g > r && g > b)
-        {
-            cv::circle(frame, circle, 20, cv::Scalar(0, 255, 0), 1, 8);
-            centers[1] = circle;
-        }
+        // }
+        // else if(b > r && b > g)
+        // {
+            // cv::circle(frame, circle, 20, cv::Scalar(255, 0, 0), 1, 8);
+            // centers[2] = circle;
+        // }
+        // else if(g > r && g > b)
+        // {
+            // cv::circle(frame, circle, 20, cv::Scalar(0, 255, 0), 1, 8);
+            // centers[1] = circle;
     }
+    for(cv::Point2f circle : blue_balls)
+    {
+    // std::cout << "blue circle" << std::endl;
+      cv::circle(frame, circle, 20, cv::Scalar(255,0,0), 1, 8);
+      centers[1] = circle;
+    }
+    for(cv::Point2f circle : green_balls)
+    {
+    // std::cout << "green circle" << std::endl;
+      cv::circle(frame, circle, 20, cv::Scalar(0,255,0), 1, 8);
+      centers[2] = circle;
+    }
+
 }
 
 void sendMotorToCol(int col)
