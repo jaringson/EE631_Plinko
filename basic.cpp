@@ -46,12 +46,22 @@ int main(int, char**)
     int prev_col_cmd{0};
     Mat frameLast, g_init, frame_init;
     // VideoCapture cap(0); // open the default camera
-   VideoCapture cap("plinko_vids/test4.avi");
+   VideoCapture cap("plinko_vids/test1.avi");
     // setupSerial();
     if(!cap.isOpened())  // check if we succeeded
         return -1;
 
-    cap >> frameLast;
+
+    int key;
+    while(true)
+    {
+      cap >> frameLast;
+      cv::imshow("Temp", frameLast);
+      std::cout << "Hit 's' if you want this to be your background image\n";
+      key = cv::waitKey(0);
+      if(key == (int)('s'))
+          break;
+    }
     cv::cvtColor(frameLast, g_init, cv::COLOR_BGR2GRAY);
     // sendCommand("h\n"); // Home the motor and encoder
 
@@ -61,8 +71,7 @@ int main(int, char**)
     cv::Rect roi;
 
     std::cout << "Enter 'c' to calibrate. Hit another key to read in file:" << std::endl;
-    cv::imshow("Temp", frameLast);
-    int key = cv::waitKey(0); // For some reason it is not waiting here
+    key = cv::waitKey(0); // For some reason it is not waiting here
     std::cout << key << std::endl;
     if(key == (int)('c'))
         calibrate_camera(frameLast, calibrationRect);
