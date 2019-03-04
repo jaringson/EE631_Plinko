@@ -48,11 +48,18 @@ int main(int, char**)
     int col_cmd{5};
     int prev_col_cmd{0};
     Mat frameLast, g_init, frame_init;
-    // VideoCapture cap(0); // open the default camera
-    VideoCapture cap("plinko_vids/test1.avi");
-    // setupSerial();
-    if(!cap.isOpened())  // check if we succeeded
+    VideoCapture cap(0); // open the default camera
+    // VideoCapture cap("plinko_w_motor5.avi");
+    setupSerial();
+    if(!cap.isOpened())
+    {  // check if we succeeded
+        std::cout << "Failed to open video\n";
         return -1;
+    }
+
+    int ex = VideoWriter::fourcc('M', 'J', 'P', 'G');
+    Size size(cap.get(3), cap.get(4));
+    VideoWriter v_out("plinko_w_motor5.avi", ex, 30, size, true);
 
     cap >> frameLast;
     cv::Mat diffs = cv::Mat::zeros(frameLast.size(), frameLast.type());
@@ -62,6 +69,7 @@ int main(int, char**)
     while(true)
     {
       cap >> frameLast;
+      v_out << frameLast;
       cv::imshow("Temp", frameLast);
       frameLast.convertTo(frameLast, CV_32F);
       std::cout << "Hit 's' if you want to save with as one of your background images\n";
@@ -82,7 +90,7 @@ int main(int, char**)
     // cv::imshow("Diffs", diffs);
     // key = cv::waitKey(0);
     cv::cvtColor(frameLast, g_init, cv::COLOR_BGR2GRAY);
-    // sendCommand("h\n"); // Home the motor and encoder
+    sendCommand("h\n"); // Home the motor and encoder
 
     //Setting up our calibration stuff here
     cv::Rect calibrationRect(cv::Point(-1,-1),cv::Point(-1,-1));
@@ -131,6 +139,7 @@ int main(int, char**)
         Mat frame, g_frame, red_diff, green_diff, blue_diff;
 
         cap >> frame; // get a new frame from camera
+        v_out << frame; // write frame to video for testing
 
         if(!frame.empty())
         {
@@ -177,19 +186,22 @@ int main(int, char**)
             imshow("Green AbsDiff", green_diff);
             imshow("Blue AbsDiff", blue_diff);
             char key;
-            key = waitKey(0);
+            key = waitKey(1);
+            // key = waitKey(0);
 
             overrideMotorWithKeyPress(key, col_cmd);
             if (key == 'q')
 	            break;
 
-            // if (col_cmd != prev_col_cmd)
-            //     sendMotorToCol(col_cmd);
+            if (col_cmd != prev_col_cmd)
+                sendMotorToCol(col_cmd);
             prev_col_cmd = col_cmd;
         }
         else
             break;
     }
+    v_out.release();
+    destroyAllWindows();
     return 0; // end of main
 }
 
@@ -208,6 +220,7 @@ int setupSerial()
 {
 
     struct termios toptions;
+    std::cout << "Hey\n";
 
     /* open serial port */
     fd = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY);
@@ -292,9 +305,9 @@ void prepImg(cv::Mat &g_init, cv::Mat &g_frame, cv::Mat frame_init, cv::Mat fram
     // cv::imshow("color diff", diff);
 
     cv::bitwise_and(frame, diff, frame);
-    cv::inRange(frame, cv::Scalar(0,0,90), cv::Scalar(150,150,255), red_diff);
-    cv::inRange(frame, cv::Scalar(0,150,0), cv::Scalar(150,255,150), green_diff);
-    cv::inRange(frame, cv::Scalar(170,0,0), cv::Scalar(255,120,150), blue_diff);
+    cv::inRange(frame, cv::Scalar(0,0,50), cv::Scalar(80,80,255), red_diff);
+    cv::inRange(frame, cv::Scalar(0,80,0), cv::Scalar(80,255,80), green_diff);
+    cv::inRange(frame, cv::Scalar(80,0,0), cv::Scalar(255,80,80), blue_diff);
 
     red_diff = cleanUpNoise(red_diff);
     green_diff = cleanUpNoise(green_diff);
@@ -315,9 +328,9 @@ cv::Mat cleanUpNoise(cv::Mat noisy_img)
     cv::Mat img;
 
     //Maybe make this 3, 3
-    cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(4, 4));
+    cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(6, 6));
     cv::Mat dilate_element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(10, 10));
-    // cv::erode(noisy_img, img, element);
+    cv::erode(noisy_img, img, element);
     cv::dilate(noisy_img, img, dilate_element);
 
     return img;
@@ -370,8 +383,17 @@ void drawCircles(cv::Mat& frame, std::vector<cv::Point2f> &centers,
             red_close_winner = circle;
         }
     }
-    cv::circle(frame, red_close_winner, 20, cv::Scalar(0, 0, 255), 1, 8);
-    centers[0] = red_close_winner;
+    if(red_close_winner.x==0)
+    {
+        cv::circle(frame, red_winner_prev, 20, cv::Scalar(0, 0, 255), 1, 8);
+        centers[0] = red_winner_prev;
+    }
+    else
+    {
+        cv::circle(frame, red_close_winner, 20, cv::Scalar(0, 0, 255), 1, 8);
+        centers[0] = red_close_winner;
+    }
+    
 
     // std::cout << "RED Winner " << red_close_winner.x << std::endl;
     // std::cout << "RED Winner Prev " << red_winner_prev.x << std::endl;
@@ -401,8 +423,17 @@ void drawCircles(cv::Mat& frame, std::vector<cv::Point2f> &centers,
             blue_close_winner = circle;
         }
     }
-    cv::circle(frame, blue_close_winner, 20, cv::Scalar(255, 0, 0), 1, 8);
-    centers[1] = blue_close_winner;
+    if(blue_close_winner.x ==0)
+    {
+        cv::circle(frame, blue_winner_prev, 20, cv::Scalar(255, 0, 0), 1, 8);
+        centers[1] = blue_winner_prev;
+
+    }
+    else
+    {
+        cv::circle(frame, blue_close_winner, 20, cv::Scalar(255, 0, 0), 1, 8);
+        centers[1] = blue_close_winner;
+    }
 
     // std::cout << "BLUE Winner " << blue_close_winner.x << std::endl;
     // std::cout << "BLUE Winner Prev " << blue_winner_prev.x << std::endl;
@@ -433,8 +464,17 @@ void drawCircles(cv::Mat& frame, std::vector<cv::Point2f> &centers,
             green_close_winner = circle;
         }
     }
-    cv::circle(frame, green_close_winner, 20, cv::Scalar(0, 255, 0), 1, 8);
-    centers[2] = green_close_winner;
+    if(green_close_winner.x==0)
+    {
+        cv::circle(frame, green_winner_prev, 20, cv::Scalar(0, 255, 0), 1, 8);
+        centers[2] = green_winner_prev;
+    }
+    else
+    {
+        cv::circle(frame, green_close_winner, 20, cv::Scalar(0, 255, 0), 1, 8);
+        centers[2] = green_close_winner;
+    }
+
 
     // std::cout << "GREEN Winner " << green_close_winner.x << std::endl;
     // std::cout << "GREEN Winner Prev " << green_winner_prev.x << std::endl;
@@ -676,7 +716,7 @@ int getLowestPossibleBall(const std::vector<cv::Point2f>& centers,
     if(r_y == 0.0 && b_y ==0.0 && g_y == 0.0)
         return -1;
 
-    if (maxDiff(r_y,g_y,b_y) < 10)
+    if (maxDiff(r_y,g_y,b_y) < 60)
     {
         int col_cmd{getColFromPixel(centers[0].x, pegs)};
         std::cout << "Heights too similar, going for red ball." << std::endl;
