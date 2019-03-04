@@ -28,7 +28,7 @@ cv::SimpleBlobDetector::Params setupParams();
 void drawCircles(cv::Mat& frame, std::vector<cv::Point2f> &centers,
    std::vector<cv::Point2f> red_balls,
    std::vector<cv::Point2f> blue_balls,
-   std::vector<cv::Point2f> green_balls);
+   std::vector<cv::Point2f> green_balls, int max_y);
 void sendMotorToCol(int col);
 int overrideMotorWithKeyPress(char key, int& col_cmd);
 
@@ -48,18 +48,18 @@ int main(int, char**)
     int col_cmd{5};
     int prev_col_cmd{0};
     Mat frameLast, g_init, frame_init;
-    VideoCapture cap(0); // open the default camera
-    // VideoCapture cap("plinko_w_motor5.avi");
-    setupSerial();
+//    VideoCapture cap(0); // open the default camera
+    VideoCapture cap("plinko_w_motor5.avi");
+//    setupSerial();
     if(!cap.isOpened())
     {  // check if we succeeded
         std::cout << "Failed to open video\n";
         return -1;
     }
 
-    int ex = VideoWriter::fourcc('M', 'J', 'P', 'G');
-    Size size(cap.get(3), cap.get(4));
-    VideoWriter v_out("plinko_w_motor5.avi", ex, 30, size, true);
+//    int ex = VideoWriter::fourcc('M', 'J', 'P', 'G');
+//    Size size(cap.get(3), cap.get(4));
+//    VideoWriter v_out("plinko_w_motor5.avi", ex, 30, size, true);
 
     cap >> frameLast;
     cv::Mat diffs = cv::Mat::zeros(frameLast.size(), frameLast.type());
@@ -69,7 +69,7 @@ int main(int, char**)
     while(true)
     {
       cap >> frameLast;
-      v_out << frameLast;
+      //v_out << frameLast;
       cv::imshow("Temp", frameLast);
       frameLast.convertTo(frameLast, CV_32F);
       std::cout << "Hit 's' if you want to save with as one of your background images\n";
@@ -90,7 +90,7 @@ int main(int, char**)
     // cv::imshow("Diffs", diffs);
     // key = cv::waitKey(0);
     cv::cvtColor(frameLast, g_init, cv::COLOR_BGR2GRAY);
-    sendCommand("h\n"); // Home the motor and encoder
+//    sendCommand("h\n"); // Home the motor and encoder
 
     //Setting up our calibration stuff here
     cv::Rect calibrationRect(cv::Point(-1,-1),cv::Point(-1,-1));
@@ -139,7 +139,7 @@ int main(int, char**)
         Mat frame, g_frame, red_diff, green_diff, blue_diff;
 
         cap >> frame; // get a new frame from camera
-        v_out << frame; // write frame to video for testing
+//        v_out << frame; // write frame to video for testing
 
         if(!frame.empty())
         {
@@ -168,13 +168,14 @@ int main(int, char**)
             //Draw circle on the balls
             //If there is no center detected the Point will show 0, 0
             std::vector<cv::Point2f> centers(3); //red is first, blue is second, green is third
-            drawCircles(frame, centers, red_balls, blue_balls, green_balls);
+            drawCircles(frame, centers, red_balls, blue_balls, green_balls,
+                        pegs[0].y);
 
             // col_cmd = catchRedBall(centers, pegs);
-//            col_cmd = getLowestBall(centers, pegs);
+            // col_cmd = getLowestBall(centers, pegs);
             col_cmd = getLowestPossibleBall(centers,pegs,col_cmd);
-//            if (col_cmd != -1)
-//                std::cout << col_cmd << std::endl;
+            //if (col_cmd != -1)
+            //    std::cout << col_cmd << std::endl;
 
             col_cmd = (col_cmd == -1) ? prev_col_cmd : col_cmd;
 
@@ -186,21 +187,21 @@ int main(int, char**)
             imshow("Green AbsDiff", green_diff);
             imshow("Blue AbsDiff", blue_diff);
             char key;
-            key = waitKey(1);
-            // key = waitKey(0);
+ //           key = waitKey(1);
+            key = waitKey(0);
 
             overrideMotorWithKeyPress(key, col_cmd);
             if (key == 'q')
 	            break;
 
-            if (col_cmd != prev_col_cmd)
-                sendMotorToCol(col_cmd);
+//            if (col_cmd != prev_col_cmd)
+//                sendMotorToCol(col_cmd);
             prev_col_cmd = col_cmd;
         }
         else
             break;
     }
-    v_out.release();
+//    v_out.release();
     destroyAllWindows();
     return 0; // end of main
 }
@@ -344,7 +345,7 @@ cv::SimpleBlobDetector::Params setupParams()
     params.filterByColor = true;
     params.blobColor = 255;
     params.filterByArea = true;
-    params.minArea = 150;
+    params.minArea = 250;
     params.maxArea = 1256;
     params.filterByCircularity = false;
     params.filterByConvexity = false;
@@ -356,7 +357,7 @@ cv::SimpleBlobDetector::Params setupParams()
 void drawCircles(cv::Mat& frame, std::vector<cv::Point2f> &centers,
    std::vector<cv::Point2f> red_balls,
    std::vector<cv::Point2f> blue_balls,
-   std::vector<cv::Point2f> green_balls)
+   std::vector<cv::Point2f> green_balls, int max_y)
 {
     static double alpha{0.6};
 
@@ -382,11 +383,18 @@ void drawCircles(cv::Mat& frame, std::vector<cv::Point2f> &centers,
             close_red = abs(circle.x-red_winner_prev.x);
             red_close_winner = circle;
         }
+        else if (red_winner_prev.x > max_y)
+            red_close_winner = circle;
     }
-    if(red_close_winner.x==0)
+    if(red_close_winner.x==0 && red_winner_prev.y < max_y)
     {
         cv::circle(frame, red_winner_prev, 20, cv::Scalar(0, 0, 255), 1, 8);
         centers[0] = red_winner_prev;
+    }
+    else if(red_close_winner.x==0 && red_winner_prev.y > max_y)
+    {
+        cv::circle(frame, red_close_winner, 20, cv::Scalar(0, 0, 255), 1, 8);
+        centers[0] = red_close_winner;
     }
     else
     {
@@ -422,17 +430,23 @@ void drawCircles(cv::Mat& frame, std::vector<cv::Point2f> &centers,
             close_blue = abs(circle.x-blue_winner_prev.x);
             blue_close_winner = circle;
         }
+        else if (blue_winner_prev.y > max_y)
+            blue_close_winner = circle;
     }
-    if(blue_close_winner.x ==0)
+    if(blue_close_winner.x ==0 && blue_winner_prev.y < max_y)
     {
         cv::circle(frame, blue_winner_prev, 20, cv::Scalar(255, 0, 0), 1, 8);
-        centers[1] = blue_winner_prev;
-
+        centers[2] = blue_winner_prev;
+    }
+    else if(blue_close_winner.x ==0 && blue_winner_prev.y > max_y)
+    {
+        cv::circle(frame, blue_close_winner, 20, cv::Scalar(255, 0, 0), 1, 8);
+        centers[2] = blue_close_winner;
     }
     else
     {
         cv::circle(frame, blue_close_winner, 20, cv::Scalar(255, 0, 0), 1, 8);
-        centers[1] = blue_close_winner;
+        centers[2] = blue_close_winner;
     }
 
     // std::cout << "BLUE Winner " << blue_close_winner.x << std::endl;
@@ -450,7 +464,7 @@ void drawCircles(cv::Mat& frame, std::vector<cv::Point2f> &centers,
 
     for(cv::Point2f circle : green_balls)
     {
-    // std::cout << "green circle" << std::endl;
+//        std::cout << "green circle found" << std::endl;
         cv::Vec3b color = frame.at<cv::Vec3b>(circle.y, circle.x);
         int b(color.val[0]), g(color.val[1]), r(color.val[2]);
         // if(g>max_green)
@@ -463,16 +477,24 @@ void drawCircles(cv::Mat& frame, std::vector<cv::Point2f> &centers,
             close_green = abs(circle.x-green_winner_prev.x);
             green_close_winner = circle;
         }
+        else if (green_winner_prev.y > max_y)
+            green_close_winner = circle;
     }
-    if(green_close_winner.x==0)
+    if(green_close_winner.x==0 && green_winner_prev.y < max_y)
     {
         cv::circle(frame, green_winner_prev, 20, cv::Scalar(0, 255, 0), 1, 8);
-        centers[2] = green_winner_prev;
+        centers[1] = green_winner_prev;
+    }
+    else if(green_close_winner.x==0 && green_winner_prev.y > max_y)
+    {
+        Point2f zero;
+        cv::circle(frame, zero, 20, cv::Scalar(0, 255, 0), 1, 8);
+        centers[1] = zero;
     }
     else
     {
         cv::circle(frame, green_close_winner, 20, cv::Scalar(0, 255, 0), 1, 8);
-        centers[2] = green_close_winner;
+        centers[1] = green_close_winner;
     }
 
 
@@ -696,9 +718,9 @@ double maxDiff(double r_h, double g_h, double b_h)
     rb_diff *= (rb_diff < 0) ? -1 : 1;
 
     double max_diff;
-    if (rg_diff > bg_diff && rg_diff > rb_diff)
+    if (rg_diff >= bg_diff && rg_diff >= rb_diff)
         max_diff = rg_diff;
-    else if (bg_diff > rg_diff && bg_diff > rb_diff)
+    else if (bg_diff >= rg_diff && bg_diff >= rb_diff)
         max_diff = bg_diff;
     else // (rg_diff > bg_diff && rg_diff > rb_diff)
         max_diff = rb_diff;
@@ -822,6 +844,9 @@ int getLowestPossibleBall(const std::vector<cv::Point2f>& centers,
         // of if the second ball is not catchable and needs to be skipped
         else
         {
+            // TODO add check to see if height of remaining 2 are similar
+            // then go for red only if they are
+            
             int cur_col{getColFromPixel(centers[index].x, pegs)};
             int next_col{getColFromPixel(centers[next_index].x, pegs)};
             int col_diff{cur_col - next_col};
@@ -838,25 +863,25 @@ int getLowestPossibleBall(const std::vector<cv::Point2f>& centers,
 
             // these function as a descrete line with the given slope
             int slope{5}; // TODO tune
-            if (next_lowest > max_y-slope*1 && col_diff <=1)
+            if (next_lowest < max_y-slope*1 && col_diff <=1)
                 index = next_index;
-            else if (next_lowest > max_y-slope*2 && col_diff <=2)
+            else if (next_lowest < max_y-slope*2 && col_diff <=2)
                 index = next_index;
-            else if (next_lowest > max_y-slope*3 && col_diff <=3)
+            else if (next_lowest < max_y-slope*3 && col_diff <=3)
                 index = next_index;
-            else if (next_lowest > max_y-slope*4 && col_diff <=4)
+            else if (next_lowest < max_y-slope*4 && col_diff <=4)
                 index = next_index;
-            else if (next_lowest > max_y-slope*5 && col_diff <=5)
+            else if (next_lowest < max_y-slope*5 && col_diff <=5)
                 index = next_index;
-            else if (next_lowest > max_y-slope*6 && col_diff <=6)
+            else if (next_lowest < max_y-slope*6 && col_diff <=6)
                 index = next_index;
-            else if (next_lowest > max_y-slope*7 && col_diff <=7)
+            else if (next_lowest < max_y-slope*7 && col_diff <=7)
                 index = next_index;
-            else if (next_lowest > max_y-slope*8 && col_diff <=8)
+            else if (next_lowest < max_y-slope*8 && col_diff <=8)
                 index = next_index;
-            else if (next_lowest > max_y-slope*9 && col_diff <=9)
+            else if (next_lowest < max_y-slope*9 && col_diff <=9)
                 index = next_index;
-            else if (next_lowest > max_y-slope*10 && col_diff <=10)
+            else if (next_lowest < max_y-slope*10 && col_diff <=10)
                 index = next_index;
             else
             {
