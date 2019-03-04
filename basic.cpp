@@ -575,6 +575,7 @@ int getLowestBall(const std::vector<cv::Point2f>& centers, const std::vector<cv:
         return -1;
 
     int index, next_index;
+    if (r_y > b_y && r_y > g_y)
     {
         index = 0;
         lowest = r_y;
