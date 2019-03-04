@@ -31,10 +31,13 @@ int overrideMotorWithKeyPress(char key, int& col_cmd);
 
 // catching options
 int getColFromPixel(int x_pixel,const std::vector<cv::Point2f>& pegs);
+void drawTuningLines(int col_cmd, std::vector<Point2f>& pegs, Mat& frame);
 int catchRedBall(const std::vector<cv::Point2f>& centers, const
                   std::vector<cv::Point2f>& pegs);
 int getLowestBall(const std::vector<cv::Point2f>& centers,
                   const std::vector<cv::Point2f>& pegs);
+int getLowestPossibleBall(const std::vector<cv::Point2f>& centers, 
+        const std::vector<cv::Point2f>& pegs, const int cur_col);
 
 int main(int, char**)
 {
@@ -43,7 +46,7 @@ int main(int, char**)
     int prev_col_cmd{0};
     Mat frameLast, g_init;
     // VideoCapture cap(0); // open the default camera
-   VideoCapture cap("plinko_vids/test4.avi");
+    VideoCapture cap("plinko_vids/test3.avi");
     // setupSerial();
     if(!cap.isOpened())  // check if we succeeded
         return -1;
@@ -121,17 +124,20 @@ int main(int, char**)
             drawCircles(frame, centers, balls);
 
             // col_cmd = catchRedBall(centers, pegs);
-            col_cmd = getLowestBall(centers, pegs);
-            if (col_cmd != -1)
-                std::cout << col_cmd << std::endl;
+//            col_cmd = getLowestBall(centers, pegs);
+            col_cmd = getLowestPossibleBall(centers,pegs,col_cmd);
+//            if (col_cmd != -1)
+//                std::cout << col_cmd << std::endl;
 
             col_cmd = (col_cmd == -1) ? prev_col_cmd : col_cmd;
 
+            drawTuningLines(col_cmd, pegs, frame);
+
             imshow("Camera Input", frame);
             imshow("AbsDiff", diff);
-            cv::waitKey(0);
+//            cv::waitKey(0);
             char key;
-            key = waitKey(1);
+            key = waitKey(0);
 
             overrideMotorWithKeyPress(key, col_cmd);
             if (key == 'q')
@@ -149,7 +155,7 @@ int main(int, char**)
 
 void sendCommand(const char* command)
 {
-    printf("Sending Command: %s", command);
+//    printf("Sending Command: %s", command);
     /* Send byte to trigger Arduino to send string back */
     write(fd, command, strlen(command));
     //Receive string from Arduino
@@ -358,7 +364,6 @@ int overrideMotorWithKeyPress(char key, int& col_cmd)
         col_cmd = 10;
 }
 
-// TODO check if it is really x that is needed
 int getColFromPixel(int x_pixel,const std::vector<cv::Point2f>& pegs)
 {
     int col;
@@ -392,6 +397,29 @@ int getColFromPixel(int x_pixel,const std::vector<cv::Point2f>& pegs)
     return col;
 }
 
+//TODO need to send in pegs and use pegs[col-k].x
+void drawTuningLines(int col, std::vector<Point2f>& pegs, Mat& frame)
+{
+    int y{pegs[0].y + 35};
+    line(frame, Point(pegs[col-1].x,y), Point(pegs[col].x,y),(255,255,255),2);
+
+    int slope{5};
+    int count{1};
+    for (int k{col-1}; k > 0; k--)
+    {
+        int h{y - slope*count};
+        line(frame,Point(pegs[k-1].x,h),Point(pegs[k].x,h),(255,255,255),2);
+        count++;
+    }
+    count = 1;
+    for (int k{col}; k < 10; k++)
+    {
+        int h{y - slope*count};
+        line(frame,Point(pegs[k].x,h),Point(pegs[k+1].x,h),(255,255,255),2);
+        count++;
+    }
+}
+
 int catchRedBall(const std::vector<cv::Point2f>& centers, const
                   std::vector<cv::Point2f>& pegs)
 {
@@ -406,45 +434,267 @@ int catchRedBall(const std::vector<cv::Point2f>& centers, const
 
 int getLowestBall(const std::vector<cv::Point2f>& centers, const std::vector<cv::Point2f>& pegs)
 {
-    static double y_prev{0.0}, x_prev{0.0};
-    double lowest;
-  double r_y{centers[0].y}, b_y{centers[2].y}, g_y{centers[1].y};
+    double lowest, next_lowest;
+    double r_y{centers[0].y}, b_y{centers[2].y}, g_y{centers[1].y};
 
-  //Check if the center was actually found
-  if(r_y == 0.0 && b_y ==0.0 && g_y == 0.0)
-    return -1;
-  // if(b_y == 0.0)
-  //   b_y = 1000.0;
-  // if(g_y == 0.0)
-  //   g_y = 1000.0;
+    //Check if the center was actually found
+    if(r_y == 0.0 && b_y ==0.0 && g_y == 0.0)
+        return -1;
 
-    int index;
+    int index, next_index;
     if(r_y > b_y && r_y > g_y)
     {
-      index = 0;
-      lowest = r_y;
+        index = 0;
+        lowest = r_y;
+        if (g_y > b_y)
+        {
+            next_lowest = g_y;
+            next_index = 1;
+        }
+        else
+        {
+            next_lowest = b_y;
+            next_index = 2;
+        }
     }
     else if(g_y > r_y && g_y > b_y)
     {
-      index = 1;
-      lowest = g_y;
+        index = 1;
+        lowest = g_y;
+        if (r_y > b_y)
+        {
+            next_lowest = r_y;
+            next_index = 0;
+        }
+        else
+        {
+            next_lowest = b_y;
+            next_index = 2;
+        }
     }
     else //(b_y > r_y && b_y > g_y)
     {
-      index = 2;
-      lowest = b_y;
+        index = 2;
+        lowest = b_y;
+        if (r_y > g_y)
+        {
+            next_lowest = r_y;
+            next_index = 0;
+        }
+        else
+        {
+            next_lowest = g_y;
+            next_index = 1;
+        }
     }
 
-    // TODO Edit this if statement
-//    if(y_prev < pegs[0].y + 30)
-//    {
-//        y_prev = lowest;
-//        return -1;
-//    }
-    y_prev = lowest;
+    if(lowest > pegs[0].y + 35)
+    {
+        index = next_index;
+    }
 
     int col_cmd{getColFromPixel(centers[index].x, pegs)};
+    if (index == 0)
+        std::cout << "Lowest ball is red at " << r_y << std::endl;
+    if (index == 1)
+        std::cout << "Lowest ball is green at " << g_y << std::endl;
+    if (index == 2)
+        std::cout << "Lowest ball is blue at " << b_y << std::endl;
 
+    if (next_index == 0)
+        std::cout << "Next ball is red at " << r_y << std::endl;
+    if (next_index == 1)
+        std::cout << "Next ball is green at " << g_y << std::endl;
+    if (next_index == 2)
+        std::cout << "Next ball is blue at " << b_y << std::endl;
+
+    std::cout << "Sending motor to column " << col_cmd << std::endl << std::endl;
+
+    return col_cmd;
+}
+
+double maxDiff(double r_h, double g_h, double b_h)
+{
+    double rg_diff{r_h - g_h};
+    rg_diff *= (rg_diff < 0) ? -1 : 1;
+    double bg_diff{b_h - g_h};
+    bg_diff *= (bg_diff < 0) ? -1 : 1;
+    double rb_diff{r_h - b_h};
+    rb_diff *= (rb_diff < 0) ? -1 : 1;
+
+    double max_diff;
+    if (rg_diff > bg_diff && rg_diff > rb_diff)
+        max_diff = rg_diff;
+    else if (bg_diff > rg_diff && bg_diff > rb_diff)
+        max_diff = bg_diff;
+    else // (rg_diff > bg_diff && rg_diff > rb_diff)
+        max_diff = rb_diff;
+
+    return max_diff;
+}
+
+int getLowestPossibleBall(const std::vector<cv::Point2f>& centers, 
+        const std::vector<cv::Point2f>& pegs, const int cur_col)
+{
+    double lowest, next_lowest, highest;
+    double r_y{centers[0].y}, b_y{centers[2].y}, g_y{centers[1].y};
+
+    //Check if the center was actually found
+    if(r_y == 0.0 && b_y ==0.0 && g_y == 0.0)
+        return -1;
+
+    if (maxDiff(r_y,g_y,b_y) < 10)
+    {
+        int col_cmd{getColFromPixel(centers[0].x, pegs)};
+        std::cout << "Heights too similar, going for red ball." << std::endl;
+        std::cout << "Sending motor to column " << col_cmd << std::endl << std::endl;
+        return col_cmd;
+    }
+
+    int index, next_index, high_index;
+    if(r_y > b_y && r_y > g_y)
+    {
+        index = 0;
+        lowest = r_y;
+        if (g_y > b_y)
+        {
+            next_lowest = g_y;
+            next_index = 1;
+            highest = b_y;
+            high_index = 2;
+        }
+        else
+        {
+            next_lowest = b_y;
+            next_index = 2;
+            highest = g_y;
+            high_index = 1;
+        }
+    }
+    else if(g_y > r_y && g_y > b_y)
+    {
+        index = 1;
+        lowest = g_y;
+        if (r_y > b_y)
+        {
+            next_lowest = r_y;
+            next_index = 0;
+            highest = b_y;
+            high_index = 2;
+        }
+        else
+        {
+            next_lowest = b_y;
+            next_index = 2;
+            highest = r_y;
+            high_index = 0;
+        }
+    }
+    else //(b_y > r_y && b_y > g_y)
+    {
+        index = 2;
+        lowest = b_y;
+        if (r_y > g_y)
+        {
+            next_lowest = r_y;
+            next_index = 0;
+            highest = g_y;
+            high_index = 1;
+        }
+        else
+        {
+            next_lowest = g_y;
+            next_index = 1;
+            highest = r_y;
+            high_index = 0;
+        }
+    }
+
+    if (index == 0)
+        std::cout << "Lowest ball is red at " << r_y << std::endl;
+    if (index == 1)
+        std::cout << "Lowest ball is green at " << g_y << std::endl;
+    if (index == 2)
+        std::cout << "Lowest ball is blue at " << b_y << std::endl;
+
+    if (next_index == 0)
+        std::cout << "Next ball is red at " << r_y << std::endl;
+    if (next_index == 1)
+        std::cout << "Next ball is green at " << g_y << std::endl;
+    if (next_index == 2)
+        std::cout << "Next ball is blue at " << b_y << std::endl;
+
+    if (high_index == 0)
+        std::cout << "Highest ball is red at " << r_y << std::endl;
+    if (high_index == 1)
+        std::cout << "Highest ball is green at " << g_y << std::endl;
+    if (high_index == 2)
+        std::cout << "Highest ball is blue at " << b_y << std::endl;
+
+    // if a ball has crossed the line
+    int max_y{pegs[0].y + 35}; // TODO tune
+    if(lowest > max_y)
+    {
+        std::cout << "This ball fell below the line: " << index << std::endl;
+        // if there are no more balls, keep same position
+        if (next_lowest == 0 && highest == 0)
+            return -1;
+        // if there is only one ball left, try to get it
+        else if (highest == 0)
+        {
+            std::cout << "Going for last ball" << std::endl;
+            index = next_index;
+        }
+        // if there are 2 balls left check if it is possible to get all 3
+        // of if the second ball is not catchable and needs to be skipped
+        else
+        {
+            int cur_col{getColFromPixel(centers[index].x, pegs)};
+            int next_col{getColFromPixel(centers[next_index].x, pegs)};
+            int col_diff{cur_col - next_col};
+            col_diff *= (col_diff < 0) ? -1 : 1;
+
+            // if 2nd ball is in the same column as the one that just fell 
+            // then don't change columns
+            if (col_diff == 0)
+            {
+                std::cout << "Sending motor to column " << cur_col << 
+                              std::endl << std::endl;
+                return cur_col;
+            }
+
+            // these function as a descrete line with the given slope
+            int slope{5}; // TODO tune
+            if (next_lowest > max_y-slope*1 && col_diff <=1)
+                index = next_index;
+            else if (next_lowest > max_y-slope*2 && col_diff <=2)
+                index = next_index;
+            else if (next_lowest > max_y-slope*3 && col_diff <=3)
+                index = next_index;
+            else if (next_lowest > max_y-slope*4 && col_diff <=4)
+                index = next_index;
+            else if (next_lowest > max_y-slope*5 && col_diff <=5)
+                index = next_index;
+            else if (next_lowest > max_y-slope*6 && col_diff <=6)
+                index = next_index;
+            else if (next_lowest > max_y-slope*7 && col_diff <=7)
+                index = next_index;
+            else if (next_lowest > max_y-slope*8 && col_diff <=8)
+                index = next_index;
+            else if (next_lowest > max_y-slope*9 && col_diff <=9)
+                index = next_index;
+            else if (next_lowest > max_y-slope*10 && col_diff <=10)
+                index = next_index;
+            else
+            {
+                std::cout << "2nd ball uncatchable; going for 3rd" << std::endl;
+                index = high_index;
+            }
+        } // end of check to see if 2nd ball is catchable
+    }
+
+    int col_cmd{getColFromPixel(centers[index].x, pegs)};
+    std::cout << "Sending motor to column " << col_cmd << std::endl << std::endl;
 
     return col_cmd;
 }
