@@ -46,7 +46,7 @@ int main(int, char**)
     int prev_col_cmd{0};
     Mat frameLast, g_init, frame_init;
     // VideoCapture cap(0); // open the default camera
-    VideoCapture cap("plinko_vids/test4.avi");
+    VideoCapture cap("plinko_vids/test1.avi");
     // setupSerial();
     if(!cap.isOpened())  // check if we succeeded
         return -1;
