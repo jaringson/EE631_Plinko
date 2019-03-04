@@ -48,18 +48,18 @@ int main(int, char**)
     int col_cmd{5};
     int prev_col_cmd{0};
     Mat frameLast, g_init, frame_init;
-//    VideoCapture cap(0); // open the default camera
-    VideoCapture cap("plinko_w_motor5.avi");
-//    setupSerial();
+   VideoCapture cap(0); // open the default camera
+    // VideoCapture cap("plinko_w_motor_comp.avi");
+   setupSerial();
     if(!cap.isOpened())
     {  // check if we succeeded
         std::cout << "Failed to open video\n";
         return -1;
     }
 
-//    int ex = VideoWriter::fourcc('M', 'J', 'P', 'G');
-//    Size size(cap.get(3), cap.get(4));
-//    VideoWriter v_out("plinko_w_motor5.avi", ex, 30, size, true);
+   int ex = VideoWriter::fourcc('M', 'J', 'P', 'G');
+   Size size(cap.get(3), cap.get(4));
+   VideoWriter v_out("plinko_w_motor_comp.avi", ex, 30, size, true);
 
     cap >> frameLast;
     cv::Mat diffs = cv::Mat::zeros(frameLast.size(), frameLast.type());
@@ -69,7 +69,7 @@ int main(int, char**)
     while(true)
     {
       cap >> frameLast;
-      //v_out << frameLast;
+      v_out << frameLast;
       cv::imshow("Temp", frameLast);
       frameLast.convertTo(frameLast, CV_32F);
       std::cout << "Hit 's' if you want to save with as one of your background images\n";
@@ -90,7 +90,7 @@ int main(int, char**)
     // cv::imshow("Diffs", diffs);
     // key = cv::waitKey(0);
     cv::cvtColor(frameLast, g_init, cv::COLOR_BGR2GRAY);
-//    sendCommand("h\n"); // Home the motor and encoder
+   sendCommand("h\n"); // Home the motor and encoder
 
     //Setting up our calibration stuff here
     cv::Rect calibrationRect(cv::Point(-1,-1),cv::Point(-1,-1));
@@ -139,7 +139,7 @@ int main(int, char**)
         Mat frame, g_frame, red_diff, green_diff, blue_diff;
 
         cap >> frame; // get a new frame from camera
-//        v_out << frame; // write frame to video for testing
+       v_out << frame; // write frame to video for testing
 
         if(!frame.empty())
         {
@@ -187,21 +187,21 @@ int main(int, char**)
             imshow("Green AbsDiff", green_diff);
             imshow("Blue AbsDiff", blue_diff);
             char key;
- //           key = waitKey(1);
-            key = waitKey(0);
+            key = waitKey(1);
+            // key = waitKey(0);
 
             overrideMotorWithKeyPress(key, col_cmd);
             if (key == 'q')
 	            break;
 
-//            if (col_cmd != prev_col_cmd)
-//                sendMotorToCol(col_cmd);
+            if (col_cmd != prev_col_cmd)
+               sendMotorToCol(col_cmd);
             prev_col_cmd = col_cmd;
         }
         else
             break;
     }
-//    v_out.release();
+   v_out.release();
     destroyAllWindows();
     return 0; // end of main
 }
